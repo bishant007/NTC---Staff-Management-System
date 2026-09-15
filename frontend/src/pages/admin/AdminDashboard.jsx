@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { BarChart3 } from "lucide-react";
 import AdminSidebar from "../../components/AdminSidebar";
 import { useAuth } from "../../context/AuthContext";
+import { getDashboardStats } from "../../services/authService"; // use the service, not raw fetch
 
 function DashboardCard({ title, value, subtitle, icon, color, bg }) {
   return (
@@ -41,7 +41,6 @@ function DashboardCard({ title, value, subtitle, icon, color, bg }) {
 
 function AdminDashboard() {
   const { user } = useAuth();
-  const [activePage, setActivePage] = useState("dashboard");
   const [dashboardData, setDashboardData] = useState({
     totalStaff: 0,
     activeStaff: 0,
@@ -55,12 +54,8 @@ function AdminDashboard() {
 
   const loadDashboard = async () => {
     try {
-      const response = await fetch("http://localhost:8081/api/dashboard");
-      if (!response.ok) {
-        setLoadError(`Server responded with ${response.status}`);
-        return;
-      }
-      const data = await response.json();
+      const res = await getDashboardStats();
+      const data = res.data;
       setDashboardData({
         totalStaff: data.totalStaff || 0,
         activeStaff: data.activeStaff || 0,
@@ -80,14 +75,15 @@ function AdminDashboard() {
 
   useEffect(() => {
     loadDashboard();
-    const interval = setInterval(() => loadDashboard(), 5000);
+    const interval = setInterval(() => loadDashboard(), 30000); // refresh every 30s
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#eef4ff", fontFamily: "Segoe UI" }}>
-      <AdminSidebar activePage={activePage} setActivePage={setActivePage} />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+    <div style={{ display: "flex", minHeight: "100vh", background: "#eef4ff" }}>
+      <AdminSidebar />
+      <div style={{ flex: 1, marginLeft: 250, padding: "30px" }}>
+        {/* Top Bar (optional – you already have it inside the content) */}
         <div
           style={{
             height: 80,
@@ -97,6 +93,8 @@ function AdminDashboard() {
             alignItems: "center",
             padding: "0 35px",
             boxShadow: "0 2px 12px rgba(0,0,0,.08)",
+            borderRadius: 12,
+            marginBottom: 30,
           }}
         >
           <div>
@@ -109,65 +107,61 @@ function AdminDashboard() {
           </div>
         </div>
 
-        <div style={{ flex: 1, padding: 30, overflow: "auto" }}>
-          {activePage === "dashboard" && (
-            <div>
-              <div
-                style={{
-                  background: "linear-gradient(135deg,#0b2e6f,#0d6efd)",
-                  borderRadius: 20,
-                  padding: "30px 40px",
-                  color: "white",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 30,
-                  boxShadow: "0 20px 40px rgba(13,110,253,.25)",
-                }}
-              >
-                <div>
-                  <h1 style={{ margin: 0, fontSize: 36 }}>Welcome back</h1>
-                  <p style={{ marginTop: 12, fontSize: 17, opacity: 0.9 }}>NTC-Staff-System</p>
-                  <p style={{ marginTop: 18, opacity: 0.8 }}>
-                    Manage staff accounts, field visit requests, password reset requests and reports from one dashboard.
-                  </p>
-                  {loadError && (
-                    <p style={{ marginTop: 14, fontSize: 13, background: "rgba(255,255,255,.15)", display: "inline-block", padding: "6px 14px", borderRadius: 8 }}>
-                      {loadError} — showing last known values.
-                    </p>
-                  )}
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 18, fontWeight: "bold" }}>Administrator</div>
-                  <div style={{ marginTop: 10, fontSize: 15, opacity: 0.8 }}>Nepal Telecom</div>
-                  <button
-                    onClick={() => setActivePage("requests")}
-                    style={{
-                      marginTop: 25,
-                      background: "#fff",
-                      color: "#0d6efd",
-                      border: "none",
-                      padding: "12px 25px",
-                      borderRadius: 10,
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                    }}
-                  >
-                    View Requests
-                  </button>
-                </div>
-              </div>
+        {/* Welcome Banner */}
+        <div
+          style={{
+            background: "linear-gradient(135deg,#0b2e6f,#0d6efd)",
+            borderRadius: 20,
+            padding: "30px 40px",
+            color: "white",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 30,
+            boxShadow: "0 20px 40px rgba(13,110,253,.25)",
+          }}
+        >
+          <div>
+            <h1 style={{ margin: 0, fontSize: 36 }}>Welcome back</h1>
+            <p style={{ marginTop: 12, fontSize: 17, opacity: 0.9 }}>NTC-Staff-System</p>
+            <p style={{ marginTop: 18, opacity: 0.8 }}>
+              Manage staff accounts, field visit requests, password reset requests and reports from one dashboard.
+            </p>
+            {loadError && (
+              <p style={{ marginTop: 14, fontSize: 13, background: "rgba(255,255,255,.15)", display: "inline-block", padding: "6px 14px", borderRadius: 8 }}>
+                {loadError} — showing last known values.
+              </p>
+            )}
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 18, fontWeight: "bold" }}>Administrator</div>
+            <div style={{ marginTop: 10, fontSize: 15, opacity: 0.8 }}>Nepal Telecom</div>
+            <button
+              onClick={() => window.location.href = "/admin/field-requests"}
+              style={{
+                marginTop: 25,
+                background: "#fff",
+                color: "#0d6efd",
+                border: "none",
+                padding: "12px 25px",
+                borderRadius: 10,
+                fontWeight: "bold",
+                cursor: "pointer",
+              }}
+            >
+              View Requests
+            </button>
+          </div>
+        </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "22px" }}>
-                <DashboardCard title="Total Staff" value={isLoading ? "…" : dashboardData.totalStaff} subtitle="Registered Staff" icon="👨‍💼" color="#2563eb" bg="#dbeafe" />
-                <DashboardCard title="Active Staff" value={isLoading ? "…" : dashboardData.activeStaff} subtitle="Currently Active" icon="✅" color="#16a34a" bg="#dcfce7" />
-                <DashboardCard title="Field Requests" value={isLoading ? "…" : dashboardData.fieldRequests} subtitle="Total Requests" icon="📋" color="#ea580c" bg="#ffedd5" />
-                <DashboardCard title="Pending Approval" value={isLoading ? "…" : dashboardData.pendingRequests} subtitle="Waiting Approval" icon="⏳" color="#dc2626" bg="#fee2e2" />
-                <DashboardCard title="Today's Requests" value={isLoading ? "…" : dashboardData.todayRequests} subtitle="Submitted Today" icon="📅" color="#7c3aed" bg="#ede9fe" />
-                <DashboardCard title="Password Reset" value={isLoading ? "…" : dashboardData.passwordReset} subtitle="Pending Reset" icon="🔑" color="#0891b2" bg="#cffafe" />
-              </div>
-            </div>
-          )}
+        {/* Dashboard Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "22px" }}>
+          <DashboardCard title="Total Staff" value={isLoading ? "…" : dashboardData.totalStaff} subtitle="Registered Staff" icon="👨‍💼" color="#2563eb" bg="#dbeafe" />
+          <DashboardCard title="Active Staff" value={isLoading ? "…" : dashboardData.activeStaff} subtitle="Currently Active" icon="✅" color="#16a34a" bg="#dcfce7" />
+          <DashboardCard title="Field Requests" value={isLoading ? "…" : dashboardData.fieldRequests} subtitle="Total Requests" icon="📋" color="#ea580c" bg="#ffedd5" />
+          <DashboardCard title="Pending Approval" value={isLoading ? "…" : dashboardData.pendingRequests} subtitle="Waiting Approval" icon="⏳" color="#dc2626" bg="#fee2e2" />
+          <DashboardCard title="Today's Requests" value={isLoading ? "…" : dashboardData.todayRequests} subtitle="Submitted Today" icon="📅" color="#7c3aed" bg="#ede9fe" />
+          <DashboardCard title="Password Reset" value={isLoading ? "…" : dashboardData.passwordReset} subtitle="Pending Reset" icon="🔑" color="#0891b2" bg="#cffafe" />
         </div>
       </div>
     </div>

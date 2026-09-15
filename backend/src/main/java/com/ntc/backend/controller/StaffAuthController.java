@@ -25,73 +25,41 @@ import java.util.Map;
 @RequestMapping("/api/staff")
 public class StaffAuthController {
 
-    @Autowired
-    private StaffRepository staffRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private AuthenticationManager authenticationManager;
-
-    @Autowired
-    private JwtUtil jwtUtil;
+    @Autowired private StaffRepository staffRepository;
+    @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private AuthenticationManager authenticationManager;
+    @Autowired private JwtUtil jwtUtil;
 
     @PostMapping("/reset-password")
-    public ApiResponse resetPassword(
-            @Valid @RequestBody PasswordResetDTO dto
-    ) {
+    public ApiResponse resetPassword(@Valid @RequestBody PasswordResetDTO dto) {
         Staff staff = staffRepository.findByStaffId(dto.getStaffId())
-                .orElseThrow(() ->
-                        new RuntimeException("Staff not found")
-                );
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
 
-        if (!passwordEncoder.matches(
-                dto.getOldPassword(),
-                staff.getPassword()
-        )) {
-            return new ApiResponse(
-                    false,
-                    "Incorrect current password"
-            );
+        if (!passwordEncoder.matches(dto.getOldPassword(), staff.getPassword())) {
+            return new ApiResponse(false, "Incorrect current password");
         }
 
-        staff.setPassword(
-                passwordEncoder.encode(dto.getNewPassword())
-        );
+        staff.setPassword(passwordEncoder.encode(dto.getNewPassword()));
         staff.setFirstLogin(false);
-
         staffRepository.save(staff);
 
-        return new ApiResponse(
-                true,
-                "Password reset successful. Please login."
-        );
+        return new ApiResponse(true, "Password reset successful. Please login.");
     }
 
     @PostMapping("/login")
-    public ApiResponse login(
-            @Valid @RequestBody LoginDTO loginDTO
-    ) {
+    public ApiResponse login(@Valid @RequestBody LoginDTO loginDTO) {
         try {
-            Authentication authentication =
-                    authenticationManager.authenticate(
-                            new UsernamePasswordAuthenticationToken(
-                                    loginDTO.getUsername(),
-                                    loginDTO.getPassword()
-                            )
-                    );
-
-            UserDetails userDetails =
-                    (UserDetails) authentication.getPrincipal();
-
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            loginDTO.getUsername(),
+                            loginDTO.getPassword()
+                    )
+            );
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             String token = jwtUtil.generateToken(userDetails);
 
-            Staff staff = staffRepository
-                    .findByStaffId(userDetails.getUsername())
-                    .orElseThrow(() ->
-                            new RuntimeException("Staff not found")
-                    );
+            Staff staff = staffRepository.findByStaffId(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("Staff not found"));
 
             Map<String, Object> data = new HashMap<>();
             data.put("token", token);
@@ -101,18 +69,12 @@ public class StaffAuthController {
             data.put("department", staff.getDepartment());
             data.put("branch", staff.getBranch());
             data.put("isFirstLogin", staff.isFirstLogin());
+            data.put("role", staff.getRole().name().toLowerCase());
+            data.put("hasSignature", staff.getSignaturePath() != null);
 
-            return new ApiResponse(
-                    true,
-                    "Login successful",
-                    data
-            );
-
+            return new ApiResponse(true, "Login successful", data);
         } catch (Exception e) {
-            return new ApiResponse(
-                    false,
-                    "Invalid credentials"
-            );
+            return new ApiResponse(false, "Invalid credentials");
         }
     }
 }

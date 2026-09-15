@@ -27,6 +27,7 @@ public class DashboardController {
     @GetMapping
     public Map<String, Long> getStats() {
         Map<String, Long> stats = new HashMap<>();
+
         long totalStaff = staffRepository.count();
         stats.put("totalStaff", totalStaff);
         stats.put("activeStaff", totalStaff); // adjust if you have active flag
@@ -34,14 +35,18 @@ public class DashboardController {
         long totalRequests = leaveRequestRepository.count();
         stats.put("fieldRequests", totalRequests);
 
-        long pending = leaveRequestRepository.countByStatus(RequestStatus.PENDING);
-        stats.put("pendingRequests", pending);
+        // Pending requests = both section-head and department-head pending statuses
+        long pendingSectionHead = leaveRequestRepository.countByStatus(RequestStatus.PENDING_SECTION_HEAD);
+        long pendingDeptHead = leaveRequestRepository.countByStatus(RequestStatus.PENDING_DEPARTMENT_HEAD);
+        stats.put("pendingRequests", pendingSectionHead + pendingDeptHead);
 
+        // Today's requests
         Instant start = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant end = LocalDate.now().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
         stats.put("todayRequests", leaveRequestRepository.countByCreatedAtBetween(start, end));
 
         stats.put("passwordReset", staffRepository.countByIsFirstLogin(true));
+
         return stats;
     }
 }

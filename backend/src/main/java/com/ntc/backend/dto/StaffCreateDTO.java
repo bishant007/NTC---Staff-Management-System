@@ -1,25 +1,31 @@
 package com.ntc.backend.dto;
 
+import com.ntc.backend.enums.StaffRole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public class StaffCreateDTO {
 
-    @NotBlank(message = "Full name is required")
+    @NotBlank
     private String fullName;
 
-    @NotBlank(message = "Phone is required")
+    @NotBlank
     private String phone;
 
-    @Email(message = "Invalid email format")
-    @NotBlank(message = "Email is required")
+    @NotBlank @Email
     private String email;
 
-    @NotBlank(message = "Department is required")
+    @NotBlank
     private String department;
 
-    @NotBlank(message = "Branch is required")
+    @NotBlank
     private String branch;
+
+    private StaffRole role;
+
+    // Optional explicit assignment (admin can set; otherwise auto-derived from creator)
+    private String sectionHeadId;
+    private String departmentHeadId;
 
     // getters and setters
     public String getFullName() { return fullName; }
@@ -36,4 +42,13 @@ public class StaffCreateDTO {
 
     public String getBranch() { return branch; }
     public void setBranch(String branch) { this.branch = branch; }
+
+    public StaffRole getRole() { return role; }
+    public void setRole(StaffRole role) { this.role = role; }
+
+    public String getSectionHeadId() { return sectionHeadId; }
+    public void setSectionHeadId(String sectionHeadId) { this.sectionHeadId = sectionHeadId; }
+
+    public String getDepartmentHeadId() { return departmentHeadId; }
+    public void setDepartmentHeadId(String departmentHeadId) { this.departmentHeadId = departmentHeadId; }
 }

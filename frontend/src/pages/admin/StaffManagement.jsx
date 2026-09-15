@@ -1,156 +1,272 @@
-import { useState } from "react";
-import { createStaff } from "../../services/authService";
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { createStaff, getAllStaff } from '../../services/authService';
+import AdminSidebar from '../../components/AdminSidebar';
 
 function StaffManagement() {
-  const [form, setForm] = useState({
-    fullName: "",
-    phone: "",
-    email: "",
-    department: "",
-    branch: "",
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('list'); // 'list' | 'create'
+  const [allStaff, setAllStaff] = useState([]);
+  const [sectionHeads, setSectionHeads] = useState([]);
+  const [deptHeads, setDeptHeads] = useState([]);
+  const [formData, setFormData] = useState({
+    fullName: '', phone: '', email: '',
+    department: '', branch: '',
+    role: 'STAFF',
+    sectionHeadId: '',
+    departmentHeadId: '',
   });
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(true);
+  const [message, setMessage] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const loadStaff = async () => {
+    try {
+      const res = await getAllStaff();
+      const list = res.data || [];
+      setAllStaff(list);
+      setSectionHeads(list.filter(s => s.role === 'SECTION_HEAD'));
+      setDeptHeads(list.filter(s => s.role === 'DEPARTMENT_HEAD'));
+    } catch (err) { console.error(err); }
+    finally { setFetchLoading(false); }
+  };
+
+  useEffect(() => { loadStaff(); }, []);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const resetForm = () => {
+    setFormData({
+      fullName: '', phone: '', email: '',
+      department: '', branch: '',
+      role: 'STAFF',
+      sectionHeadId: '',
+      departmentHeadId: '',
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage("");
     setLoading(true);
+    setMessage('');
+    setSuccess(false);
     try {
-      const res = await createStaff(form);
+      const res = await createStaff(formData);
       if (res.data.success) {
-        setMessage("✅ Staff created! Credentials sent to email.");
-        setForm({ fullName: "", phone: "", email: "", department: "", branch: "" });
+        setMessage('✅ Staff created. Credentials sent to email & printed in backend console.');
+        setSuccess(true);
+        resetForm();
+        loadStaff();
       } else {
-        setMessage("❌ " + (res.data.message || "Creation failed"));
+        setMessage('❌ ' + res.data.message);
       }
     } catch (err) {
-      setMessage("❌ Server error");
-    }
-    setLoading(false);
+      setMessage('❌ ' + (err.response?.data?.message || err.message));
+    } finally { setLoading(false); }
   };
 
   return (
-    <div style={{ padding: 30, maxWidth: "600px", margin: "0 auto" }}>
-      <div
-        style={{
-          background: "#fff",
-          padding: "30px 35px",
-          borderRadius: "18px",
-          border: "3px solid #cfe0fc",
-          boxShadow: "6px 6px 0px #cfe0fc, 0 20px 40px rgba(13,110,253,.15)",
-        }}
-      >
-        <h2 style={{ color: "#0b2e6f", fontSize: "28px", marginBottom: "6px" }}>Create New Staff</h2>
-        <p style={{ color: "#5b7bab", marginBottom: "24px", fontSize: "15px" }}>
-          Fill in the details. The system will generate a unique Staff ID and send credentials via email.
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#eef4ff' }}>
+      <AdminSidebar />
+      <div style={{ flex: 1, marginLeft: 250, padding: '30px' }}>
+        <h1 style={{ color: '#0b2e6f', marginBottom: 4 }}>Staff Management</h1>
+        <p style={{ color: '#5b7bab', marginTop: 0 }}>
+          Manage accounts and hierarchy. As Admin you can create any role and assign their reporting heads.
         </p>
 
-        {message && <p style={{ marginBottom: "16px", fontWeight: "600", color: message.startsWith("✅") ? "green" : "#e5484d" }}>{message}</p>}
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 24, marginBottom: 20 }}>
+          <TabBtn active={activeTab === 'list'} onClick={() => setActiveTab('list')}>
+            Staff List ({allStaff.length})
+          </TabBtn>
+          <TabBtn active={activeTab === 'create'} onClick={() => setActiveTab('create')}>
+            + Create Account
+          </TabBtn>
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          <label style={{ fontWeight: "600", color: "#0b2e6f", fontSize: "14px" }}>Full Name</label>
-          <input
-            type="text"
-            name="fullName"
-            placeholder="John Doe"
-            value={form.fullName}
-            onChange={handleChange}
-            style={inputStyle}
-            required
-          />
-          <div style={{ height: "16px" }} />
+        {message && (
+          <p style={{ color: success ? 'green' : '#dc3545', fontWeight: 600, marginBottom: 20 }}>
+            {message}
+          </p>
+        )}
 
-          <label style={{ fontWeight: "600", color: "#0b2e6f", fontSize: "14px" }}>Phone</label>
-          <input
-            type="text"
-            name="phone"
-            placeholder="98XXXXXXXX"
-            value={form.phone}
-            onChange={handleChange}
-            style={inputStyle}
-            required
-          />
-          <div style={{ height: "16px" }} />
+        {activeTab === 'list' && (
+          <div style={{ background: '#fff', padding: 24, borderRadius: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+            <h2 style={{ marginTop: 0 }}>All Accounts</h2>
+            {fetchLoading ? <p>Loading...</p> :
+              allStaff.length === 0 ? <p style={{ color: '#888' }}>No accounts created yet.</p> :
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ background: '#f8f9fa' }}>
+                      <th style={th}>Staff ID</th>
+                      <th style={th}>Name</th>
+                      <th style={th}>Email</th>
+                      <th style={th}>Role</th>
+                      <th style={th}>Dept / Branch</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allStaff.map(s => (
+                      <tr key={s.id} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ ...td, fontWeight: 700, color: '#0d6efd' }}>{s.staffId}</td>
+                        <td style={td}>{s.fullName}</td>
+                        <td style={td}>{s.email}</td>
+                        <td style={td}><RoleBadge role={s.role} /></td>
+                        <td style={td}>{s.department} · {s.branch}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        )}
 
-          <label style={{ fontWeight: "600", color: "#0b2e6f", fontSize: "14px" }}>Email</label>
-          <input
-            type="email"
-            name="email"
-            placeholder="staff@ntc.net.np"
-            value={form.email}
-            onChange={handleChange}
-            style={inputStyle}
-            required
-          />
-          <div style={{ height: "16px" }} />
+        {activeTab === 'create' && (
+          <div style={{ background: '#fff', padding: 28, borderRadius: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.05)', maxWidth: 780 }}>
+            <h2 style={{ marginTop: 0 }}>Create New Account</h2>
+            <form onSubmit={handleSubmit}>
+              <div style={grid2}>
+                <Field label="Full Name *">
+                  <input name="fullName" value={formData.fullName} onChange={handleChange} required style={inp} />
+                </Field>
+                <Field label="Phone *">
+                  <input name="phone" value={formData.phone} onChange={handleChange} required style={inp} />
+                </Field>
+                <Field label="Email *">
+                  <input type="email" name="email" value={formData.email} onChange={handleChange} required style={inp} />
+                </Field>
+                <Field label="Role *">
+                  <select name="role" value={formData.role} onChange={handleChange} style={inp}>
+                    <option value="STAFF">Staff</option>
+                    <option value="SECTION_HEAD">Section Head</option>
+                    <option value="DEPARTMENT_HEAD">Department Head</option>
+                  </select>
+                </Field>
+                <Field label="Department *">
+                  <input name="department" value={formData.department} onChange={handleChange} required style={inp} />
+                </Field>
+                <Field label="Branch *">
+                  <input name="branch" value={formData.branch} onChange={handleChange} required style={inp} />
+                </Field>
+              </div>
 
-          <label style={{ fontWeight: "600", color: "#0b2e6f", fontSize: "14px" }}>Department</label>
-          <input
-            type="text"
-            name="department"
-            placeholder="IT"
-            value={form.department}
-            onChange={handleChange}
-            style={inputStyle}
-            required
-          />
-          <div style={{ height: "16px" }} />
+              {formData.role === 'STAFF' && (
+                <>
+                  <h3 style={sectionH}>Reporting Chain</h3>
+                  <div style={grid2}>
+                    <Field label="Section Head *">
+                      <select name="sectionHeadId" value={formData.sectionHeadId} onChange={handleChange} style={inp}>
+                        <option value="">-- Select Section Head --</option>
+                        {sectionHeads.map(h => (
+                          <option key={h.staffId} value={h.staffId}>
+                            {h.fullName} ({h.staffId}) — {h.department}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Department Head *">
+                      <select name="departmentHeadId" value={formData.departmentHeadId} onChange={handleChange} style={inp}>
+                        <option value="">-- Select Department Head --</option>
+                        {deptHeads.map(h => (
+                          <option key={h.staffId} value={h.staffId}>
+                            {h.fullName} ({h.staffId}) — {h.department}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+                </>
+              )}
 
-          <label style={{ fontWeight: "600", color: "#0b2e6f", fontSize: "14px" }}>Branch</label>
-          <input
-            type="text"
-            name="branch"
-            placeholder="Kathmandu"
-            value={form.branch}
-            onChange={handleChange}
-            style={inputStyle}
-            required
-          />
-          <div style={{ height: "24px" }} />
+              {formData.role === 'SECTION_HEAD' && (
+                <>
+                  <h3 style={sectionH}>Reporting Chain</h3>
+                  <Field label="Department Head *">
+                    <select name="departmentHeadId" value={formData.departmentHeadId} onChange={handleChange} style={inp}>
+                      <option value="">-- Select Department Head --</option>
+                      {deptHeads.map(h => (
+                        <option key={h.staffId} value={h.staffId}>
+                          {h.fullName} ({h.staffId}) — {h.department}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </>
+              )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "14px",
-              background: loading ? "#a9c6f5" : "linear-gradient(180deg, #3b8dfd, #0d6efd)",
-              color: "white",
-              border: "2px solid #0a4fc4",
-              borderRadius: "10px",
-              fontSize: "16px",
-              fontWeight: "700",
-              cursor: loading ? "not-allowed" : "pointer",
-              boxShadow: loading ? "none" : "0 4px 0px #0a4fc4, 0 8px 16px rgba(13,110,253,.35)",
-              transform: "translateY(0)",
-              transition: "all .1s ease",
-            }}
-          >
-            {loading ? "Creating..." : "Create Staff"}
-          </button>
-        </form>
+              {formData.role === 'DEPARTMENT_HEAD' && (
+                <p style={{ marginTop: 16, padding: 12, background: '#fff7e6', borderRadius: 8, fontSize: 13, color: '#92400e' }}>
+                  ℹ️ Department Heads sit at the top of their reporting chain — no further head assignment needed.
+                </p>
+              )}
+
+              <button type="submit" disabled={loading} style={{
+                marginTop: 24, padding: '14px 32px',
+                background: loading ? '#a9c6f5' : '#0d6efd',
+                color: '#fff', border: 'none', borderRadius: 10,
+                fontSize: 16, fontWeight: 700,
+                cursor: loading ? 'not-allowed' : 'pointer',
+              }}>
+                {loading ? 'Creating...' : 'Create Account'}
+              </button>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-const inputStyle = {
-  width: "100%",
-  padding: "13px 14px",
-  marginTop: "6px",
-  borderRadius: "10px",
-  border: "2px solid #a9c6f5",
-  fontSize: "15px",
-  outline: "none",
-  boxSizing: "border-box",
-  background: "#f4f8ff",
-  boxShadow: "inset 0 2px 4px rgba(13,110,253,.1), 3px 3px 0px #dceafe",
-  transition: "all .15s ease",
-};
+function TabBtn({ active, onClick, children }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: '10px 20px', border: 'none', cursor: 'pointer',
+      borderRadius: 10, fontWeight: 600, fontSize: 14,
+      background: active ? '#0d6efd' : '#fff',
+      color: active ? '#fff' : '#0b2e6f',
+      boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+    }}>{children}</button>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 13, color: '#334155' }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function RoleBadge({ role }) {
+  const colors = {
+    STAFF: '#dbeafe',
+    SECTION_HEAD: '#ede9fe',
+    DEPARTMENT_HEAD: '#fce7f3',
+  };
+  const fg = {
+    STAFF: '#1e40af',
+    SECTION_HEAD: '#6b21a8',
+    DEPARTMENT_HEAD: '#9d174d',
+  };
+  return (
+    <span style={{
+      padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+      background: colors[role] || '#eee', color: fg[role] || '#333',
+    }}>{role?.replace('_', ' ')}</span>
+  );
+}
+
+const th = { padding: '10px', textAlign: 'left', fontSize: 13, color: '#334155' };
+const td = { padding: '10px', color: '#0b2e6f' };
+const inp = { width: '100%', padding: 10, borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' };
+const grid2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 8 };
+const sectionH = { marginTop: 20, marginBottom: 12, fontSize: 15, color: '#0b2e6f' };
 
 export default StaffManagement;

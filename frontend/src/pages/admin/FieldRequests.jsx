@@ -1,167 +1,152 @@
-import { useEffect, useState } from "react";
-import { getLeaveRequests, updateRequestStatus } from "../../services/authService";
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { getLeaveRequests } from '../../services/authService';
+import AdminSidebar from '../../components/AdminSidebar';
 
 function FieldRequests() {
   const [requests, setRequests] = useState([]);
-  const [filter, setFilter] = useState("");
-  const [remarks, setRemarks] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+  const [filter, setFilter] = useState('');
 
-  const fetchRequests = async () => {
-    setLoading(true);
+  const loadRequests = async (status) => {
     try {
-      const res = await getLeaveRequests(filter || undefined);
+      const res = await getLeaveRequests(status);
       setRequests(res.data);
     } catch (err) {
-      alert("Failed to fetch requests");
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchRequests();
-  }, [filter]);
-
-  const handleStatusChange = async (id, status) => {
-    try {
-      await updateRequestStatus(id, status, remarks[id] || "");
-      fetchRequests();
-    } catch (err) {
-      alert("Failed to update status");
+      console.error(err);
+      setMessage('Failed to load requests');
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => { loadRequests(); }, []);
+
+  if (loading) return <div style={{ marginLeft: 250, padding: 30 }}>Loading...</div>;
+
+  const fmt = (v) => v ? new Date(v).toLocaleString() : '—';
 
   return (
-    <div style={{ padding: 30 }}>
-      <div
-        style={{
-          background: "#fff",
-          padding: "24px 30px",
-          borderRadius: "18px",
-          border: "3px solid #cfe0fc",
-          boxShadow: "6px 6px 0px #cfe0fc, 0 20px 40px rgba(13,110,253,.15)",
-        }}
-      >
-        <h2 style={{ color: "#0b2e6f", fontSize: "28px", marginBottom: "4px" }}>Field Requests</h2>
-        <p style={{ color: "#5b7bab", marginBottom: "20px", fontSize: "15px" }}>Review and manage staff leave requests.</p>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#eef4ff' }}>
+      <AdminSidebar />
+      <div style={{ flex: 1, marginLeft: 250, padding: '30px' }}>
+        <h1 style={{ color: '#0b2e6f', marginBottom: 4 }}>Leave Requests</h1>
+        <p style={{ color: '#5b7bab', marginTop: 0 }}>
+          System-wide view for monitoring. Admins can see but not act on requests — approvals
+          are handled by Section Heads and Department Heads.
+        </p>
 
-        <div style={{ marginBottom: "20px" }}>
-          <label style={{ fontWeight: "600", color: "#0b2e6f", fontSize: "14px" }}>Filter: </label>
+        {message && <p style={{ color: '#dc3545' }}>{message}</p>}
+
+        <div style={{ marginTop: 20, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <label style={{ fontWeight: 600, color: '#334155', fontSize: 14 }}>Filter by Status:</label>
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              loadRequests(e.target.value);
+            }}
             style={{
-              padding: "10px 14px",
-              borderRadius: "10px",
-              border: "2px solid #a9c6f5",
-              background: "#f4f8ff",
-              fontWeight: "600",
-              outline: "none",
+              padding: '10px 16px', borderRadius: 8, border: '1px solid #cbd5e1',
+              fontSize: 14, background: '#fff'
             }}
           >
             <option value="">All</option>
-            <option value="PENDING">Pending</option>
+            <option value="PENDING_SECTION_HEAD">Pending Section Head</option>
+            <option value="PENDING_DEPARTMENT_HEAD">Pending Department Head</option>
             <option value="APPROVED">Approved</option>
             <option value="REJECTED">Rejected</option>
+            <option value="CANCELLED">Cancelled</option>
             <option value="ON_HOLD">On Hold</option>
           </select>
         </div>
 
-        {loading ? (
-          <p>Loading requests...</p>
+        {requests.length === 0 ? (
+          <div style={{ background: '#fff', padding: 40, borderRadius: 16, textAlign: 'center', color: '#888' }}>
+            No requests found.
+          </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
+          <div style={{ overflowX: 'auto', background: '#fff', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: "#0b2e6f", color: "#fff" }}>
-                  <th style={{ padding: "12px 15px", textAlign: "left" }}>Staff</th>
-                  <th style={{ padding: "12px 15px", textAlign: "left" }}>Reason</th>
-                  <th style={{ padding: "12px 15px", textAlign: "left" }}>Start</th>
-                  <th style={{ padding: "12px 15px", textAlign: "left" }}>Return</th>
-                  <th style={{ padding: "12px 15px", textAlign: "left" }}>Status</th>
-                  <th style={{ padding: "12px 15px", textAlign: "left" }}>Actions</th>
+                <tr style={{ background: '#f8fafc' }}>
+                  <th style={th}>Staff</th>
+                  <th style={th}>Leave Type</th>
+                  <th style={th}>Reason</th>
+                  <th style={th}>Return Date</th>
+                  <th style={th}>Section Head</th>
+                  <th style={th}>Dept Head</th>
+                  <th style={th}>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {requests.map((req, index) => (
-                  <tr key={req.id} style={{ borderBottom: index % 2 === 0 ? "2px solid #edf2f7" : "none", background: index % 2 === 0 ? "#f9fcff" : "transparent" }}>
-                    <td style={{ padding: "12px 15px" }}>{req.staff.fullName}</td>
-                    <td style={{ padding: "12px 15px" }}>{req.reason}</td>
-                    <td style={{ padding: "12px 15px" }}>{new Date(req.leaveStartTime).toLocaleString()}</td>
-                    <td style={{ padding: "12px 15px" }}>{new Date(req.returnDateTime).toLocaleString()}</td>
-                    <td style={{ padding: "12px 15px", fontWeight: "bold", color: req.status === "PENDING" ? "#ea580c" : req.status === "APPROVED" ? "#16a34a" : req.status === "REJECTED" ? "#dc2626" : "#7c3aed" }}>
-                      {req.status}
+                {requests.map((req) => (
+                  <tr key={req.id} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={td}>
+                      <div style={{ fontWeight: 600 }}>{req.staffName || req.staff?.fullName || '—'}</div>
+                      <div style={{ fontSize: 12, color: '#94a3b8' }}>{req.staffId || req.staff?.staffId}</div>
                     </td>
-                    <td style={{ padding: "12px 15px" }}>
-                      <input
-                        type="text"
-                        placeholder="Remarks"
-                        value={remarks[req.id] || ""}
-                        onChange={(e) => setRemarks({ ...remarks, [req.id]: e.target.value })}
-                        style={{
-                          padding: "6px 10px",
-                          border: "2px solid #a9c6f5",
-                          borderRadius: "8px",
-                          marginRight: "8px",
-                          width: "120px",
-                          background: "#f4f8ff",
-                          outline: "none",
-                        }}
-                      />
-                      <button
-                        onClick={() => handleStatusChange(req.id, "APPROVED")}
-                        style={{
-                          background: "#16a34a",
-                          color: "white",
-                          border: "none",
-                          padding: "6px 14px",
-                          borderRadius: "8px",
-                          cursor: "pointer",
-                          fontWeight: "600",
-                          marginRight: "6px",
-                        }}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleStatusChange(req.id, "REJECTED")}
-                        style={{
-                          background: "#dc2626",
-                          color: "white",
-                          border: "none",
-                          padding: "6px 14px",
-                          borderRadius: "8px",
-                          cursor: "pointer",
-                          fontWeight: "600",
-                          marginRight: "6px",
-                        }}
-                      >
-                        Reject
-                      </button>
-                      <button
-                        onClick={() => handleStatusChange(req.id, "ON_HOLD")}
-                        style={{
-                          background: "#7c3aed",
-                          color: "white",
-                          border: "none",
-                          padding: "6px 14px",
-                          borderRadius: "8px",
-                          cursor: "pointer",
-                          fontWeight: "600",
-                        }}
-                      >
-                        Hold
-                      </button>
+                    <td style={td}>{req.leaveType}</td>
+                    <td style={{ ...td, maxWidth: 240, fontSize: 13, color: '#475569' }}>
+                      {req.reason}
                     </td>
+                    <td style={{ ...td, fontSize: 13 }}>{fmt(req.returnDateTime)}</td>
+                    <td style={{ ...td, fontSize: 13 }}>
+                      {req.sectionHeadName
+                        ? <><div style={{ fontWeight: 600 }}>{req.sectionHeadName}</div>
+                            <div style={{ fontSize: 12, color: '#94a3b8' }}>{req.sectionHeadSignature || 'no signature'}</div></>
+                        : <span style={{ color: '#cbd5e1' }}>—</span>}
+                    </td>
+                    <td style={{ ...td, fontSize: 13 }}>
+                      {req.departmentHeadName
+                        ? <><div style={{ fontWeight: 600 }}>{req.departmentHeadName}</div>
+                            <div style={{ fontSize: 12, color: '#94a3b8' }}>{req.departmentHeadSignature || 'no signature'}</div></>
+                        : <span style={{ color: '#cbd5e1' }}>—</span>}
+                    </td>
+                    <td style={td}><StatusPill status={req.status} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
+
+        <div style={{
+          marginTop: 24, padding: 14, background: '#f0f9ff',
+          border: '1px solid #bae6fd', borderRadius: 10,
+          fontSize: 13, color: '#075985'
+        }}>
+          🔒 <strong>Admin access is read-only.</strong> Requests can only be approved or
+          rejected by the assigned Section Head and Department Head. This preserves the
+          integrity of the approval chain.
+        </div>
       </div>
     </div>
   );
 }
+
+function StatusPill({ status }) {
+  const styles = {
+    PENDING_SECTION_HEAD:    { bg: '#fef3c7', fg: '#92400e' },
+    PENDING_DEPARTMENT_HEAD: { bg: '#dbeafe', fg: '#1e40af' },
+    APPROVED:                { bg: '#d1fae5', fg: '#065f46' },
+    REJECTED:                { bg: '#fee2e2', fg: '#991b1b' },
+    CANCELLED:               { bg: '#e5e7eb', fg: '#374151' },
+    ON_HOLD:                 { bg: '#e5e7eb', fg: '#374151' },
+  };
+  const c = styles[status] || styles.ON_HOLD;
+  return (
+    <span style={{
+      padding: '4px 10px', borderRadius: 20, fontSize: 11,
+      fontWeight: 700, background: c.bg, color: c.fg, whiteSpace: 'nowrap',
+    }}>
+      {status?.replace(/_/g, ' ')}
+    </span>
+  );
+}
+
+const th = { padding: '12px', textAlign: 'left', fontSize: 13, color: '#334155', fontWeight: 700 };
+const td = { padding: '12px', color: '#0b2e6f', fontSize: 14, verticalAlign: 'top' };
 
 export default FieldRequests;

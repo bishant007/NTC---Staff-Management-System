@@ -39,13 +39,26 @@ function Login() {
 
       if (res.data.success) {
         const { token, ...userData } = res.data.data;
-        login(userData, token, "staff");
+        const role = userData.role || "staff";
+        login(userData, token, role);
 
-        // Redirect based on first login
         if (userData.isFirstLogin) {
           navigate("/staff/reset-password");
-        } else {
-          navigate("/staff/dashboard");
+          return;
+        }
+
+        switch (role) {
+          case "section_head":
+            navigate("/section-head/dashboard");
+            break;
+          case "department_head":
+            navigate("/department-head/dashboard");
+            break;
+          case "admin":
+            navigate("/admin/dashboard");
+            break;
+          default:
+            navigate("/staff/dashboard");
         }
       } else {
         setLoginError(res.data.message || "Invalid credentials");

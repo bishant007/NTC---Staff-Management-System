@@ -1,88 +1,85 @@
-import { useAuth } from "../context/AuthContext";
-import {
-  LayoutDashboard,
-  Users,
-  ClipboardList,
-  KeyRound,
-  BarChart3,
-  Settings,
-  LogOut,
-  ShieldUser,
-} from "lucide-react";
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { LayoutDashboard, Users, FileText, LogOut, Key, BarChart3, Settings } from 'lucide-react';
 
-function AdminSidebar({ activePage, setActivePage }) {
+function AdminSidebar() {
   const { logout } = useAuth();
-
-  const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
-    { id: "staff", label: "Staff Management", icon: <Users size={18} /> },
-    { id: "requests", label: "Field Requests", icon: <ClipboardList size={18} /> },
-    { id: "password", label: "Password Reset", icon: <KeyRound size={18} /> },
-    { id: "reports", label: "Reports", icon: <BarChart3 size={18} /> },
-    { id: "settings", label: "Settings", icon: <Settings size={18} /> },
-  ];
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
-    window.location.href = "/admin/login";
+    navigate('/admin/login');
   };
 
-  return (
-    <div
-      style={{
-        width: "270px",
-        background: "#0b2e6f",
-        color: "#fff",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div style={{ padding: 30, textAlign: "center", borderBottom: "1px solid rgba(255,255,255,.15)" }}>
-        <ShieldUser size={55} />
-        <h2 style={{ marginTop: 15 }}>NTC Admin</h2>
-        <p style={{ opacity: 0.7 }}>Administration Panel</p>
-      </div>
+  const menuItems = [
+    { label: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/admin/dashboard' },
+    { label: 'Staff Management', icon: <Users size={20} />, path: '/admin/staff-management' },
+    { label: 'Field Requests', icon: <FileText size={20} />, path: '/admin/field-requests' },
+    { label: 'Password Reset', icon: <Key size={20} />, path: '/admin/password-reset' },
+    { label: 'Reports', icon: <BarChart3 size={20} />, path: '/admin/reports' },
+    { label: 'Settings', icon: <Settings size={20} />, path: '/admin/settings' },
+  ];
 
-      <div style={{ flex: 1, marginTop: 20 }}>
+  return (
+    <div style={{
+      width: 250,
+      height: '100vh',
+      background: '#0b2e6f',
+      color: 'white',
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'fixed',
+      left: 0,
+      top: 0,
+      bottom: 0,
+    }}>
+      <div style={{ padding: '20px', borderBottom: '1px solid #2554a0' }}>
+        <h2 style={{ margin: 0, fontSize: 20 }}>NTC Admin</h2>
+      </div>
+      <nav style={{ flex: 1, padding: '20px 0' }}>
         {menuItems.map((item) => (
-          <div
-            key={item.id}
-            onClick={() => setActivePage(item.id)}
+          <Link
+            key={item.path}
+            to={item.path}
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 15,
-              padding: "16px 25px",
-              cursor: "pointer",
-              background: activePage === item.id ? "#0d6efd" : "transparent",
-              transition: ".3s",
+              display: 'flex',
+              alignItems: 'center',
+              padding: '12px 20px',
+              color: 'white',
+              textDecoration: 'none',
+              gap: '12px',
+              fontSize: 15,
+              borderLeft: '3px solid transparent',
             }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#1a4a8a'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
             {item.icon}
             <span>{item.label}</span>
-          </div>
+          </Link>
         ))}
-      </div>
-
-      <div style={{ padding: 20, borderTop: "1px solid rgba(255,255,255,.15)" }}>
+      </nav>
+      <div style={{ padding: '20px', borderTop: '1px solid #2554a0' }}>
         <button
           onClick={handleLogout}
           style={{
-            width: "100%",
-            padding: 14,
-            border: "none",
-            borderRadius: 10,
-            background: "#dc3545",
-            color: "#fff",
-            cursor: "pointer",
-            fontWeight: "bold",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            background: 'transparent',
+            border: 'none',
+            color: 'white',
+            fontSize: 15,
+            cursor: 'pointer',
+            padding: '10px 0',
+            width: '100%',
           }}
+          onMouseEnter={(e) => e.currentTarget.style.color = '#ff6b6b'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'white'}
         >
-          <LogOut size={18} /> Logout
+          <LogOut size={20} />
+          Logout
         </button>
       </div>
     </div>

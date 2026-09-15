@@ -1,6 +1,10 @@
 package com.ntc.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.ntc.backend.enums.StaffRole;
 import jakarta.persistence.*;
+
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,16 +38,42 @@ public class Staff {
     private String password;
 
     @Column(name = "is_first_login")
-    private boolean isFirstLogin = true;   // default true
+    private boolean isFirstLogin = true;
 
-    // One staff can have many leave requests
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StaffRole role = StaffRole.STAFF;
+
+    // ===== Reporting hierarchy =====
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "section_head_id")
+    @JsonIgnore
+    private Staff sectionHead;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_head_id")
+    @JsonIgnore
+    private Staff departmentHead;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_id")
+    @JsonIgnore
+    private Staff createdBy;
+
+    // ===== Digital signature =====
+    @Column(name = "signature_path")
+    private String signaturePath;
+
+    @Column(name = "signature_uploaded_at")
+    private Instant signatureUploadedAt;
+
     @OneToMany(mappedBy = "staff", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<LeaveRequest> leaveRequests = new ArrayList<>();
 
-    // constructors
     public Staff() {}
 
-    // getters and setters for all fields
+    // ---------- getters and setters ----------
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -70,6 +100,24 @@ public class Staff {
 
     public boolean isFirstLogin() { return isFirstLogin; }
     public void setFirstLogin(boolean firstLogin) { isFirstLogin = firstLogin; }
+
+    public StaffRole getRole() { return role; }
+    public void setRole(StaffRole role) { this.role = role; }
+
+    public Staff getSectionHead() { return sectionHead; }
+    public void setSectionHead(Staff sectionHead) { this.sectionHead = sectionHead; }
+
+    public Staff getDepartmentHead() { return departmentHead; }
+    public void setDepartmentHead(Staff departmentHead) { this.departmentHead = departmentHead; }
+
+    public Staff getCreatedBy() { return createdBy; }
+    public void setCreatedBy(Staff createdBy) { this.createdBy = createdBy; }
+
+    public String getSignaturePath() { return signaturePath; }
+    public void setSignaturePath(String signaturePath) { this.signaturePath = signaturePath; }
+
+    public Instant getSignatureUploadedAt() { return signatureUploadedAt; }
+    public void setSignatureUploadedAt(Instant signatureUploadedAt) { this.signatureUploadedAt = signatureUploadedAt; }
 
     public List<LeaveRequest> getLeaveRequests() { return leaveRequests; }
     public void setLeaveRequests(List<LeaveRequest> leaveRequests) { this.leaveRequests = leaveRequests; }

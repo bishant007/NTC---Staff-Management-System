@@ -19,6 +19,12 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (userData, token, role) => {
+    // Clear anything stale first
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+
+    // Set new
     setUser(userData);
     setToken(token);
     setRole(role);

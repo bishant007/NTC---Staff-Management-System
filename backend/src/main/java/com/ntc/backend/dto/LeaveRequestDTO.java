@@ -1,10 +1,9 @@
 package com.ntc.backend.dto;
 
-import jakarta.validation.constraints.Future;
+import com.ntc.backend.enums.LeaveType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 public class LeaveRequestDTO {
 
@@ -15,16 +14,26 @@ public class LeaveRequestDTO {
     private String reason;
 
     @NotNull
-    @Future(message = "Return date/time must be in the future")
-    private Instant returnDateTime;
+    private LocalDateTime startDateTime;   // NEW
 
-    // getters and setters
+    @NotNull
+    private LocalDateTime returnDateTime;
+
+    @NotNull
+    private LeaveType leaveType;
+
     public String getStaffId() { return staffId; }
     public void setStaffId(String staffId) { this.staffId = staffId; }
 
     public String getReason() { return reason; }
     public void setReason(String reason) { this.reason = reason; }
 
-    public Instant getReturnDateTime() { return returnDateTime; }
-    public void setReturnDateTime(Instant returnDateTime) { this.returnDateTime = returnDateTime; }
+    public LocalDateTime getStartDateTime() { return startDateTime; }
+    public void setStartDateTime(LocalDateTime startDateTime) { this.startDateTime = startDateTime; }
+
+    public LocalDateTime getReturnDateTime() { return returnDateTime; }
+    public void setReturnDateTime(LocalDateTime returnDateTime) { this.returnDateTime = returnDateTime; }
+
+    public LeaveType getLeaveType() { return leaveType; }
+    public void setLeaveType(LeaveType leaveType) { this.leaveType = leaveType; }
 }
