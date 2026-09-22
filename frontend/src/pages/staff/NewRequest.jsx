@@ -8,6 +8,7 @@ function NewRequest() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [reason, setReason] = useState('');
+  const [startDateTime, setStartDateTime] = useState('');
   const [returnDateTime, setReturnDateTime] = useState('');
   const [leaveType, setLeaveType] = useState('FULL_DAY');
   const [submitting, setSubmitting] = useState(false);
@@ -17,8 +18,17 @@ function NewRequest() {
     e.preventDefault();
     setSubmitting(true);
     setMessage('');
+
+    if (new Date(returnDateTime) <= new Date(startDateTime)) {
+      setMessage('❌ Return date/time must be after start date/time');
+      setSubmitting(false);
+      return;
+    }
+
     try {
-      const res = await submitLeaveRequest(user.staffId, reason, returnDateTime, leaveType);
+      const res = await submitLeaveRequest(
+        user.staffId, reason, startDateTime, returnDateTime, leaveType
+      );
       if (res.data.success) {
         setMessage('✅ Leave request submitted successfully!');
         setTimeout(() => navigate('/staff/my-requests'), 800);
@@ -57,12 +67,16 @@ function NewRequest() {
             <textarea rows={4} value={reason} onChange={e => setReason(e.target.value)}
               required style={{ ...inp, resize: 'vertical' }} />
 
+            <label style={lbl}>Leave Start Date & Time</label>
+            <input type="datetime-local" value={startDateTime}
+              onChange={e => setStartDateTime(e.target.value)} required style={inp} />
+
             <label style={lbl}>Expected Return Date & Time</label>
             <input type="datetime-local" value={returnDateTime}
               onChange={e => setReturnDateTime(e.target.value)} required style={inp} />
 
             <button type="submit" disabled={submitting} style={{
-              width: '100%', padding: 14, marginTop: 8,
+              width: '100%', padding: 14, marginTop: 20,
               background: submitting ? '#a9c6f5' : '#0d6efd',
               color: '#fff', border: 'none', borderRadius: 10,
               fontSize: 16, fontWeight: 700,

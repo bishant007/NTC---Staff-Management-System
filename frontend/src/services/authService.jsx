@@ -10,6 +10,12 @@ export const createStaff = (staffData) =>
 export const getAllStaff = () =>
   api.get('/admin/staff');
 
+export const getStaffByStaffId = (staffId) =>                    // <-- NEW
+  api.get(`/admin/staff/${staffId}`);
+
+export const updateStaff = (staffId, data) =>                    // <-- NEW
+  api.put(`/admin/staff/${staffId}`, data);
+
 export const getLeaveRequests = (status) =>
   api.get('/admin/requests', { params: { status } });
 
@@ -23,8 +29,8 @@ export const staffLogin = (staffId, password) =>
 export const resetPassword = (staffId, oldPassword, newPassword) =>
   api.post('/staff/reset-password', { staffId, oldPassword, newPassword });
 
-export const submitLeaveRequest = (staffId, reason, returnDateTime, leaveType) =>
-  api.post('/staff/leave-request', { staffId, reason, returnDateTime, leaveType });
+export const submitLeaveRequest = (staffId, reason, startDateTime, returnDateTime, leaveType) =>
+  api.post('/staff/leave-request', { staffId, reason, startDateTime, returnDateTime, leaveType });
 
 export const getMyRequests = (staffId) =>
   api.get(`/staff/requests/${staffId}`);
@@ -48,7 +54,7 @@ export const rejectBySectionHead = (id, reason) =>
 export const createStaffBySectionHead = (data) =>
   api.post('/section-head/staff', data);
 
-export const getMyStaff = () =>                                  // <-- NEW
+export const getMyStaff = () =>
   api.get('/section-head/my-staff', { params: { _t: Date.now() } });
 
 // ---------- Department Head ----------
@@ -67,7 +73,7 @@ export const rejectByDeptHead = (id, reason) =>
 export const createStaffByDeptHead = (data) =>
   api.post('/department-head/staff', data);
 
-export const getMySectionHeads = () =>                            // <-- NEW
+export const getMySectionHeads = () =>
   api.get('/department-head/my-section-heads', { params: { _t: Date.now() } });
 
 // ---------- Profile ----------

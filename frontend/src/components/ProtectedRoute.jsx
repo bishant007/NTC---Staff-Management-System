@@ -9,6 +9,7 @@ export const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/" replace />;
   }
 
+  // If allowedRoles is provided, check if current role is allowed
   if (allowedRoles && !allowedRoles.includes(role)) {
     return <Navigate to="/" replace />;
   }

@@ -9,6 +9,7 @@ function MyRequests() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [confirmId, setConfirmId] = useState(null);
 
   const load = async () => {
     try {
@@ -20,18 +21,20 @@ function MyRequests() {
 
   useEffect(() => { load(); }, [user]);
 
-  const handleCancel = async (id) => {
-    if (!window.confirm('Cancel this leave request? This cannot be undone.')) return;
+  const doCancel = async () => {
     try {
-      const res = await cancelMyRequest(id);
+      const res = await cancelMyRequest(confirmId);
       if (res.data.success) {
         setMessage('✅ Request cancelled');
+        setConfirmId(null);
         load();
       } else {
         setMessage('❌ ' + res.data.message);
+        setConfirmId(null);
       }
     } catch (err) {
       setMessage('❌ ' + (err.response?.data?.message || err.message));
+      setConfirmId(null);
     }
   };
 
@@ -61,7 +64,7 @@ function MyRequests() {
               <RequestDetail key={r.id} request={r} viewerRole="staff">
                 {(r.status === 'PENDING_SECTION_HEAD' || r.status === 'PENDING_DEPARTMENT_HEAD') && (
                   <div style={{ marginTop: 14 }}>
-                    <button onClick={() => handleCancel(r.id)} style={{
+                    <button onClick={() => setConfirmId(r.id)} style={{
                       padding: '10px 20px', background: '#dc3545', color: '#fff',
                       border: 'none', borderRadius: 8, fontWeight: 700,
                       cursor: 'pointer', fontSize: 14,
@@ -72,6 +75,37 @@ function MyRequests() {
                 )}
               </RequestDetail>
             ))
+        )}
+
+        {confirmId && (
+          <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999
+          }} onClick={() => setConfirmId(null)}>
+            <div onClick={e => e.stopPropagation()} style={{
+              background: '#fff', padding: 32, borderRadius: 16, width: 420,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)', textAlign: 'center'
+            }}>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>⚠️</div>
+              <h2 style={{ marginTop: 0, color: '#0b2e6f' }}>Cancel this request?</h2>
+              <p style={{ color: '#64748b', fontSize: 14 }}>
+                This action cannot be undone. The request will be marked as cancelled and
+                removed from your approvers' queues.
+              </p>
+              <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+                <button onClick={() => setConfirmId(null)} style={{
+                  flex: 1, padding: 12, background: '#f1f5f9', color: '#334155',
+                  border: 'none', borderRadius: 10, fontWeight: 700,
+                  fontSize: 14, cursor: 'pointer'
+                }}>Keep Request</button>
+                <button onClick={doCancel} style={{
+                  flex: 1, padding: 12, background: '#dc3545', color: '#fff',
+                  border: 'none', borderRadius: 10, fontWeight: 700,
+                  fontSize: 14, cursor: 'pointer'
+                }}>Yes, Cancel</button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

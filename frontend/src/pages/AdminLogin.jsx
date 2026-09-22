@@ -11,45 +11,43 @@ function AdminLogin() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState({ email: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    const newErrors = { email: "", password: "" };
+    let isValid = true;
+
+    if (email.trim() === "") {
+      newErrors.email = "Please enter your email address";
+      isValid = false;
+    }
+    if (password.trim() === "") {
+      newErrors.password = "Please enter your password";
+      isValid = false;
+    }
+
+    setErrors(newErrors);
     setLoginError("");
 
-    if (!email.trim() || !password.trim()) {
-      setLoginError("Please enter both email and password");
-      return;
-    }
+    if (!isValid) return;
 
     try {
       setLoading(true);
       const res = await adminLogin(email, password);
 
-      console.log("Login response:", res);
-      console.log("Response data:", res.data);
-
       if (res.data.success) {
-        const { token, email: userEmail } = res.data.data;
-        console.log("Token:", token);
-        console.log("Email:", userEmail);
-        
-        login({ email: userEmail }, token, "admin");
+        const { token, ...userData } = res.data.data;
+        const role = "admin"; // always admin
+        login(userData, token, role);
         navigate("/admin/dashboard");
       } else {
         setLoginError(res.data.message || "Invalid credentials");
       }
     } catch (error) {
-      console.error("Login error:", error);
-      console.error("Error response:", error.response);
-      
-      if (error.response?.status === 401) {
-        setLoginError("Invalid email or password");
-      } else if (error.response?.status === 404) {
-        setLoginError("Server endpoint not found");
-      } else {
-        setLoginError("Unable to connect to the server");
-      }
+      console.error(error);
+      setLoginError("Unable to connect to the server.");
     } finally {
       setLoading(false);
     }
@@ -79,6 +77,7 @@ function AdminLogin() {
             "8px 8px 0px rgba(13,110,253,.25), 0 25px 50px rgba(13,42,94,.25)",
         }}
       >
+        {/* LEFT PANEL */}
         <div
           style={{
             width: "35%",
@@ -134,6 +133,7 @@ function AdminLogin() {
           </h1>
         </div>
 
+        {/* RIGHT PANEL */}
         <div
           style={{
             width: "65%",
@@ -177,6 +177,7 @@ function AdminLogin() {
               Access the administration panel
             </p>
 
+            {/* Email */}
             <label
               style={{
                 fontWeight: "600",
@@ -197,18 +198,33 @@ function AdminLogin() {
                 padding: "13px 14px",
                 marginTop: "6px",
                 borderRadius: "10px",
-                border: "2px solid #a9c6f5",
+                border: errors.email ? "2px solid #e5484d" : "2px solid #a9c6f5",
                 fontSize: "15px",
                 outline: "none",
                 boxSizing: "border-box",
                 background: "#f4f8ff",
-                boxShadow:
-                  "inset 0 2px 4px rgba(13,110,253,.1), 3px 3px 0px #dceafe",
+                boxShadow: errors.email
+                  ? "inset 0 2px 4px rgba(229,72,77,.15)"
+                  : "inset 0 2px 4px rgba(13,110,253,.1), 3px 3px 0px #dceafe",
                 transition: "all .15s ease",
               }}
             />
-            <div style={{ height: "20px" }} />
+            {errors.email && (
+              <p
+                style={{
+                  color: "#e5484d",
+                  marginTop: "6px",
+                  marginBottom: "16px",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                }}
+              >
+                {errors.email}
+              </p>
+            )}
+            {!errors.email && <div style={{ height: "20px" }} />}
 
+            {/* Password */}
             <label
               style={{
                 fontWeight: "600",
@@ -229,17 +245,31 @@ function AdminLogin() {
                 padding: "13px 14px",
                 marginTop: "6px",
                 borderRadius: "10px",
-                border: "2px solid #a9c6f5",
+                border: errors.password ? "2px solid #e5484d" : "2px solid #a9c6f5",
                 fontSize: "15px",
                 outline: "none",
                 boxSizing: "border-box",
                 background: "#f4f8ff",
-                boxShadow:
-                  "inset 0 2px 4px rgba(13,110,253,.1), 3px 3px 0px #dceafe",
+                boxShadow: errors.password
+                  ? "inset 0 2px 4px rgba(229,72,77,.15)"
+                  : "inset 0 2px 4px rgba(13,110,253,.1), 3px 3px 0px #dceafe",
                 transition: "all .15s ease",
               }}
             />
-            <div style={{ height: "20px" }} />
+            {errors.password && (
+              <p
+                style={{
+                  color: "#e5484d",
+                  marginTop: "6px",
+                  marginBottom: "16px",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                }}
+              >
+                {errors.password}
+              </p>
+            )}
+            {!errors.password && <div style={{ height: "20px" }} />}
 
             {loginError && (
               <p
@@ -256,7 +286,6 @@ function AdminLogin() {
             )}
 
             <button
-              type="button"
               onClick={handleLogin}
               disabled={loading}
               style={{
@@ -283,17 +312,10 @@ function AdminLogin() {
             </button>
 
             <div style={{ marginTop: "26px", textAlign: "center" }}>
-              <p
-                style={{
-                  color: "#5b7bab",
-                  fontSize: "13px",
-                  marginBottom: "4px",
-                }}
-              >
+              <p style={{ color: "#5b7bab", fontSize: "13px", marginBottom: "4px" }}>
                 Access restricted to administrators only.
               </p>
               <button
-                type="button"
                 onClick={() => navigate("/staff/login")}
                 style={{
                   background: "transparent",

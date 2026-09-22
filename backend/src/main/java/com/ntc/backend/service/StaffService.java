@@ -66,7 +66,18 @@ public class StaffService {
         staff.setStaffId(staffId);
 
         String rawPassword = RandomStringUtils.randomAlphanumeric(12);
-        System.out.println("🔑 TEMP PASSWORD for " + staff.getEmail() + " : " + rawPassword);
+
+        // ---------- UPDATED LOGGING ----------
+        System.out.println("════════════════════════════════════════════════════");
+        System.out.println("🔑 NEW ACCOUNT CREATED");
+        System.out.println("   Name:     " + staff.getFullName());
+        System.out.println("   Staff ID: " + staffId);
+        System.out.println("   Email:    " + staff.getEmail());
+        System.out.println("   Password: " + rawPassword);
+        System.out.println("   Role:     " + staff.getRole());
+        System.out.println("════════════════════════════════════════════════════");
+        // ------------------------------------
+
         staff.setPassword(passwordEncoder.encode(rawPassword));
         staff.setFirstLogin(true);
 
@@ -156,7 +167,18 @@ public class StaffService {
         staff.setStaffId(staffId);
 
         String rawPassword = RandomStringUtils.randomAlphanumeric(12);
-        System.out.println("🔑 TEMP PASSWORD for " + staff.getEmail() + " : " + rawPassword);
+
+        // ---------- UPDATED LOGGING ----------
+        System.out.println("════════════════════════════════════════════════════");
+        System.out.println("🔑 NEW ACCOUNT CREATED");
+        System.out.println("   Name:     " + staff.getFullName());
+        System.out.println("   Staff ID: " + staffId);
+        System.out.println("   Email:    " + staff.getEmail());
+        System.out.println("   Password: " + rawPassword);
+        System.out.println("   Role:     " + staff.getRole());
+        System.out.println("════════════════════════════════════════════════════");
+        // ------------------------------------
+
         staff.setPassword(passwordEncoder.encode(rawPassword));
         staff.setFirstLogin(true);
 

@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/department-head")
-@CrossOrigin(origins = "http://localhost:5173")
 public class DepartmentHeadController {
 
     @Autowired private LeaveRequestService leaveRequestService;
