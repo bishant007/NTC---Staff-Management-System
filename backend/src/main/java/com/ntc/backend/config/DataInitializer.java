@@ -10,23 +10,26 @@ import org.springframework.stereotype.Component;
 @Component
 public class DataInitializer implements CommandLineRunner {
 
-    @Autowired
-    private AdminRepository adminRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    @Autowired private AdminRepository adminRepository;
+    @Autowired private PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
-        if (adminRepository.findByEmail("admin@ntc.com").isEmpty()) {
-            Admin admin = new Admin();
-            admin.setAdminId("ADMIN-001");
-            admin.setFullName("System Administrator");
-            admin.setEmail("admin@ntc.com");
-            admin.setPassword(passwordEncoder.encode("admin123"));
-            admin.setRole("ADMIN");
-            adminRepository.save(admin);
-            System.out.println("✅ Default admin created: admin@ntc.com / admin123");
+        seedAdmin("ADMIN-001", "admin@bharat.com", "Bharat Bandhu Paudel", "Super@admin");
+        seedAdmin("ADMIN-002", "admin@nirmal.com", "Nirmal Raj Chataut", "test@1234");
+    }
+
+    private void seedAdmin(String adminId, String username, String fullName, String password) {
+        if (adminRepository.findByUsername(username).isEmpty()) {
+            Admin a = new Admin();
+            a.setAdminId(adminId);
+            a.setUsername(username);
+            a.setEmail(username);
+            a.setFullName(fullName);
+            a.setPassword(passwordEncoder.encode(password));
+            a.setRole("ADMIN");
+            adminRepository.save(a);
+            System.out.println("✅ Seeded admin: " + username + " / " + password);
         }
     }
 }

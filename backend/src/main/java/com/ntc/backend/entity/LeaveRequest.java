@@ -17,6 +17,9 @@ public class LeaveRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "reference_number", unique = true)
+    private String referenceNumber;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "staff_id", nullable = false)
     @JsonIgnore
@@ -39,25 +42,39 @@ public class LeaveRequest {
     @Column(name = "leave_type", nullable = false)
     private LeaveType leaveType;
 
-    // ===== Section Head approval =====
-    @Column(name = "section_head_signature")
-    private String sectionHeadSignature;
+    // Staff submission signature
+    @Column(name = "staff_signature", columnDefinition = "TEXT")
+    private String staffSignature;
+    @Column(name = "staff_signed_at")
+    private Instant staffSignedAt;
 
+    // Section Head forward
+    @Column(name = "section_head_signature", columnDefinition = "TEXT")
+    private String sectionHeadSignature;
     @Column(name = "section_head_approved_at")
     private Instant sectionHeadApprovedAt;
-
     @Column(name = "section_head_notes", columnDefinition = "TEXT")
     private String sectionHeadNotes;
 
-    // ===== Department Head approval =====
-    @Column(name = "department_head_signature")
-    private String departmentHeadSignature;
+    // Section Head reject
+    @Column(name = "section_head_reject_signature", columnDefinition = "TEXT")
+    private String sectionHeadRejectSignature;
+    @Column(name = "section_head_rejected_at")
+    private Instant sectionHeadRejectedAt;
 
-    @Column(name = "department_head_approved_at")
-    private Instant departmentHeadApprovedAt;
+    // Office Incharge final approve
+    @Column(name = "office_incharge_signature", columnDefinition = "TEXT")
+    private String officeInchargeSignature;
+    @Column(name = "office_incharge_approved_at")
+    private Instant officeInchargeApprovedAt;
+    @Column(name = "office_incharge_notes", columnDefinition = "TEXT")
+    private String officeInchargeNotes;
 
-    @Column(name = "department_head_notes", columnDefinition = "TEXT")
-    private String departmentHeadNotes;
+    // Office Incharge reject
+    @Column(name = "office_incharge_reject_signature", columnDefinition = "TEXT")
+    private String officeInchargeRejectSignature;
+    @Column(name = "office_incharge_rejected_at")
+    private Instant officeInchargeRejectedAt;
 
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
@@ -75,9 +92,11 @@ public class LeaveRequest {
 
     public LeaveRequest() {}
 
-    // ---------- getters and setters ----------
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+
+    public String getReferenceNumber() { return referenceNumber; }
+    public void setReferenceNumber(String referenceNumber) { this.referenceNumber = referenceNumber; }
 
     public Staff getStaff() { return staff; }
     public void setStaff(Staff staff) { this.staff = staff; }
@@ -97,6 +116,12 @@ public class LeaveRequest {
     public LeaveType getLeaveType() { return leaveType; }
     public void setLeaveType(LeaveType leaveType) { this.leaveType = leaveType; }
 
+    public String getStaffSignature() { return staffSignature; }
+    public void setStaffSignature(String staffSignature) { this.staffSignature = staffSignature; }
+
+    public Instant getStaffSignedAt() { return staffSignedAt; }
+    public void setStaffSignedAt(Instant staffSignedAt) { this.staffSignedAt = staffSignedAt; }
+
     public String getSectionHeadSignature() { return sectionHeadSignature; }
     public void setSectionHeadSignature(String sectionHeadSignature) { this.sectionHeadSignature = sectionHeadSignature; }
 
@@ -106,14 +131,26 @@ public class LeaveRequest {
     public String getSectionHeadNotes() { return sectionHeadNotes; }
     public void setSectionHeadNotes(String sectionHeadNotes) { this.sectionHeadNotes = sectionHeadNotes; }
 
-    public String getDepartmentHeadSignature() { return departmentHeadSignature; }
-    public void setDepartmentHeadSignature(String departmentHeadSignature) { this.departmentHeadSignature = departmentHeadSignature; }
+    public String getSectionHeadRejectSignature() { return sectionHeadRejectSignature; }
+    public void setSectionHeadRejectSignature(String s) { this.sectionHeadRejectSignature = s; }
 
-    public Instant getDepartmentHeadApprovedAt() { return departmentHeadApprovedAt; }
-    public void setDepartmentHeadApprovedAt(Instant departmentHeadApprovedAt) { this.departmentHeadApprovedAt = departmentHeadApprovedAt; }
+    public Instant getSectionHeadRejectedAt() { return sectionHeadRejectedAt; }
+    public void setSectionHeadRejectedAt(Instant t) { this.sectionHeadRejectedAt = t; }
 
-    public String getDepartmentHeadNotes() { return departmentHeadNotes; }
-    public void setDepartmentHeadNotes(String departmentHeadNotes) { this.departmentHeadNotes = departmentHeadNotes; }
+    public String getOfficeInchargeSignature() { return officeInchargeSignature; }
+    public void setOfficeInchargeSignature(String officeInchargeSignature) { this.officeInchargeSignature = officeInchargeSignature; }
+
+    public Instant getOfficeInchargeApprovedAt() { return officeInchargeApprovedAt; }
+    public void setOfficeInchargeApprovedAt(Instant officeInchargeApprovedAt) { this.officeInchargeApprovedAt = officeInchargeApprovedAt; }
+
+    public String getOfficeInchargeNotes() { return officeInchargeNotes; }
+    public void setOfficeInchargeNotes(String officeInchargeNotes) { this.officeInchargeNotes = officeInchargeNotes; }
+
+    public String getOfficeInchargeRejectSignature() { return officeInchargeRejectSignature; }
+    public void setOfficeInchargeRejectSignature(String s) { this.officeInchargeRejectSignature = s; }
+
+    public Instant getOfficeInchargeRejectedAt() { return officeInchargeRejectedAt; }
+    public void setOfficeInchargeRejectedAt(Instant t) { this.officeInchargeRejectedAt = t; }
 
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }

@@ -18,35 +18,24 @@ import java.util.Map;
 @RequestMapping("/api/dashboard")
 public class DashboardController {
 
-    @Autowired
-    private StaffRepository staffRepository;
-
-    @Autowired
-    private LeaveRequestRepository leaveRequestRepository;
+    @Autowired private StaffRepository staffRepository;
+    @Autowired private LeaveRequestRepository leaveRequestRepository;
 
     @GetMapping
     public Map<String, Long> getStats() {
         Map<String, Long> stats = new HashMap<>();
-
         long totalStaff = staffRepository.count();
         stats.put("totalStaff", totalStaff);
-        stats.put("activeStaff", totalStaff); // adjust if you have active flag
-
-        long totalRequests = leaveRequestRepository.count();
-        stats.put("fieldRequests", totalRequests);
-
-        // Pending requests = both section-head and department-head pending statuses
-        long pendingSectionHead = leaveRequestRepository.countByStatus(RequestStatus.PENDING_SECTION_HEAD);
-        long pendingDeptHead = leaveRequestRepository.countByStatus(RequestStatus.PENDING_DEPARTMENT_HEAD);
-        stats.put("pendingRequests", pendingSectionHead + pendingDeptHead);
-
-        // Today's requests
+        stats.put("activeStaff", totalStaff);
+        stats.put("fieldRequests", leaveRequestRepository.count());
+        stats.put("pendingRequests",
+                leaveRequestRepository.countByStatus(RequestStatus.PENDING_SECTION_HEAD)
+                        + leaveRequestRepository.countByStatus(RequestStatus.PENDING_OFFICE_INCHARGE)
+                        + leaveRequestRepository.countByStatus(RequestStatus.PENDING_SELF_APPROVAL));
         Instant start = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant end = LocalDate.now().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
         stats.put("todayRequests", leaveRequestRepository.countByCreatedAtBetween(start, end));
-
         stats.put("passwordReset", staffRepository.countByIsFirstLogin(true));
-
         return stats;
     }
 }

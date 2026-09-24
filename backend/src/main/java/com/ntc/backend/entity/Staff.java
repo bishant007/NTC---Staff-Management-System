@@ -19,6 +19,9 @@ public class Staff {
     @Column(name = "staff_id", unique = true, nullable = false)
     private String staffId;
 
+    @Column(unique = true, nullable = false)
+    private String username;
+
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
@@ -44,23 +47,21 @@ public class Staff {
     @Column(nullable = false)
     private StaffRole role = StaffRole.STAFF;
 
-    // ===== Reporting hierarchy =====
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "section_head_id")
     @JsonIgnore
     private Staff sectionHead;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_head_id")
+    @JoinColumn(name = "office_incharge_id")
     @JsonIgnore
-    private Staff departmentHead;
+    private Staff officeIncharge;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_id")
     @JsonIgnore
     private Staff createdBy;
 
-    // ===== Digital signature =====
     @Column(name = "signature_path")
     private String signaturePath;
 
@@ -73,12 +74,14 @@ public class Staff {
 
     public Staff() {}
 
-    // ---------- getters and setters ----------
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
     public String getStaffId() { return staffId; }
     public void setStaffId(String staffId) { this.staffId = staffId; }
+
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
@@ -107,8 +110,8 @@ public class Staff {
     public Staff getSectionHead() { return sectionHead; }
     public void setSectionHead(Staff sectionHead) { this.sectionHead = sectionHead; }
 
-    public Staff getDepartmentHead() { return departmentHead; }
-    public void setDepartmentHead(Staff departmentHead) { this.departmentHead = departmentHead; }
+    public Staff getOfficeIncharge() { return officeIncharge; }
+    public void setOfficeIncharge(Staff officeIncharge) { this.officeIncharge = officeIncharge; }
 
     public Staff getCreatedBy() { return createdBy; }
     public void setCreatedBy(Staff createdBy) { this.createdBy = createdBy; }

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -29,85 +30,73 @@ public class LeaveRequestService {
         Staff staff = staffRepository.findByStaffId(dto.getStaffId())
                 .orElseThrow(() -> new RuntimeException("Staff not found"));
 
-        if (staff.getRole() == StaffRole.DEPARTMENT_HEAD) {
-            throw new RuntimeException(
-                    "Department Heads cannot submit leave through this system. Please contact HR."
-            );
-        }
-
         RequestStatus initialStatus;
-        if (staff.getRole() == StaffRole.SECTION_HEAD) {
-            if (staff.getDepartmentHead() == null) {
-                throw new RuntimeException("You have no department head assigned. Contact admin.");
+        switch (staff.getRole()) {
+            case SECTION_HEAD -> {
+                if (staff.getOfficeIncharge() == null)
+                    throw new RuntimeException("You have no Office Incharge assigned. Contact admin.");
+                initialStatus = RequestStatus.PENDING_OFFICE_INCHARGE;
             }
-            initialStatus = RequestStatus.PENDING_DEPARTMENT_HEAD;
-        } else {
-            if (staff.getSectionHead() == null) {
-                throw new RuntimeException(
-                        "You are not assigned to a section head yet. Contact your department head."
-                );
+            case OFFICE_INCHARGE -> initialStatus = RequestStatus.PENDING_SELF_APPROVAL;
+            default -> {
+                if (staff.getSectionHead() == null)
+                    throw new RuntimeException("You are not assigned to a Section Head yet.");
+                initialStatus = RequestStatus.PENDING_SECTION_HEAD;
             }
-            initialStatus = RequestStatus.PENDING_SECTION_HEAD;
         }
 
-        // ---------- CHANGED: use startDateTime from DTO ----------
-        Instant startInstant = dto.getStartDateTime()
-                .atZone(ZoneId.systemDefault()).toInstant();
-        Instant returnInstant = dto.getReturnDateTime()
-                .atZone(ZoneId.systemDefault()).toInstant();
+        Instant startInstant = dto.getStartDateTime().atZone(ZoneId.systemDefault()).toInstant();
+        Instant returnInstant = dto.getReturnDateTime().atZone(ZoneId.systemDefault()).toInstant();
 
-        if (returnInstant.isBefore(startInstant)) {
+        if (returnInstant.isBefore(startInstant))
             throw new RuntimeException("Return date/time must be after start date/time");
-        }
-        if (returnInstant.isBefore(Instant.now())) {
+        if (returnInstant.isBefore(Instant.now()))
             throw new RuntimeException("Return date/time must be in the future");
-        }
-        // ---------------------------------------------------------
 
-        // ===== Overlap check against active requests =====
         List<LeaveRequest> active = leaveRequestRepository.findActiveByStaff(staff);
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-                .withZone(ZoneId.systemDefault());
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault());
         for (LeaveRequest existing : active) {
-            boolean overlaps =
-                    !existing.getLeaveStartTime().isAfter(returnInstant)
-                            && !startInstant.isAfter(existing.getReturnDateTime());
+            boolean overlaps = !existing.getLeaveStartTime().isAfter(returnInstant)
+                    && !startInstant.isAfter(existing.getReturnDateTime());
             if (overlaps) {
-                throw new RuntimeException(
-                        "You already have an active request from " +
-                                fmt.format(existing.getLeaveStartTime()) + " to " +
-                                fmt.format(existing.getReturnDateTime()) +
-                                " (" + existing.getStatus().name().replace('_', ' ') + "). " +
-                                "Cancel it first or choose different dates."
-                );
+                throw new RuntimeException("Overlap with existing request " + existing.getReferenceNumber()
+                        + " (" + fmt.format(existing.getLeaveStartTime())
+                        + " → " + fmt.format(existing.getReturnDateTime()) + ")");
             }
         }
 
-        LeaveRequest request = new LeaveRequest();
-        request.setStaff(staff);
-        request.setReason(dto.getReason());
-        request.setLeaveStartTime(startInstant);
-        request.setReturnDateTime(returnInstant);
-        request.setLeaveType(dto.getLeaveType());
-        request.setStatus(initialStatus);
+        LeaveRequest r = new LeaveRequest();
+        r.setStaff(staff);
+        r.setReason(dto.getReason());
+        r.setLeaveStartTime(startInstant);
+        r.setReturnDateTime(returnInstant);
+        r.setLeaveType(dto.getLeaveType());
+        r.setStatus(initialStatus);
+        r.setStaffSignature(dto.getSignature());
+        r.setStaffSignedAt(Instant.now());
+        r.setReferenceNumber(generateReferenceNumber());
 
-        LeaveRequest saved = leaveRequestRepository.save(request);
+        LeaveRequest saved = leaveRequestRepository.save(r);
         return LeaveRequestResponseDTO.from(saved);
     }
 
+    private synchronized String generateReferenceNumber() {
+        int year = LocalDate.now().getYear();
+        String prefix = "NTC/LEAVE/" + year + "/";
+        long count = leaveRequestRepository.countByReferenceNumberStartingWith(prefix);
+        return prefix + String.format("%04d", count + 1);
+    }
+
     @Transactional
-    public void cancelRequest(Long requestId, String requesterStaffId) {
+    public void cancelRequest(Long requestId, String requesterUsername) {
         LeaveRequest r = leaveRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Request not found"));
-
-        if (!r.getStaff().getStaffId().equals(requesterStaffId)) {
+        if (!r.getStaff().getUsername().equals(requesterUsername))
             throw new RuntimeException("You can only cancel your own requests");
-        }
         if (r.getStatus() != RequestStatus.PENDING_SECTION_HEAD
-                && r.getStatus() != RequestStatus.PENDING_DEPARTMENT_HEAD) {
+                && r.getStatus() != RequestStatus.PENDING_OFFICE_INCHARGE
+                && r.getStatus() != RequestStatus.PENDING_SELF_APPROVAL)
             throw new RuntimeException("Only pending requests can be cancelled");
-        }
-
         r.setStatus(RequestStatus.CANCELLED);
         leaveRequestRepository.save(r);
     }
@@ -121,8 +110,8 @@ public class LeaveRequestService {
     }
 
     @Transactional(readOnly = true)
-    public List<LeaveRequestResponseDTO> getPendingForSectionHead(String headStaffId) {
-        Staff head = staffRepository.findByStaffId(headStaffId)
+    public List<LeaveRequestResponseDTO> getPendingForSectionHead(String username) {
+        Staff head = staffRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Section head not found"));
         return leaveRequestRepository
                 .findByStatusAndStaffSectionHeadId(RequestStatus.PENDING_SECTION_HEAD, head.getId())
@@ -130,27 +119,38 @@ public class LeaveRequestService {
     }
 
     @Transactional(readOnly = true)
-    public List<LeaveRequestResponseDTO> getPendingForDepartmentHead(String headStaffId) {
-        Staff head = staffRepository.findByStaffId(headStaffId)
-                .orElseThrow(() -> new RuntimeException("Department head not found"));
-        return leaveRequestRepository
-                .findByStatusAndStaffDepartmentHeadId(RequestStatus.PENDING_DEPARTMENT_HEAD, head.getId())
-                .stream().map(LeaveRequestResponseDTO::from).collect(Collectors.toList());
+    public List<LeaveRequestResponseDTO> getPendingForOfficeIncharge(String username) {
+        Staff oi = staffRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Office Incharge not found"));
+        List<LeaveRequest> pendingDept = leaveRequestRepository
+                .findByStatusAndStaffOfficeInchargeId(RequestStatus.PENDING_OFFICE_INCHARGE, oi.getId());
+        List<LeaveRequest> pendingSelf = leaveRequestRepository
+                .findByStatusAndStaffOfficeInchargeId(RequestStatus.PENDING_SELF_APPROVAL, oi.getId());
+        pendingDept.addAll(pendingSelf);
+        return pendingDept.stream().map(LeaveRequestResponseDTO::from).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<LeaveRequestResponseDTO> getHistoryForSectionHead(String headStaffId) {
-        Staff head = staffRepository.findByStaffId(headStaffId)
+    public List<LeaveRequestResponseDTO> getHistoryForSectionHead(String username) {
+        Staff head = staffRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Section head not found"));
         return leaveRequestRepository.findByStaffSectionHeadId(head.getId())
                 .stream().map(LeaveRequestResponseDTO::from).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<LeaveRequestResponseDTO> getHistoryForDepartmentHead(String headStaffId) {
-        Staff head = staffRepository.findByStaffId(headStaffId)
-                .orElseThrow(() -> new RuntimeException("Department head not found"));
-        return leaveRequestRepository.findByStaffDepartmentHeadId(head.getId())
+    public List<LeaveRequestResponseDTO> getHistoryForOfficeIncharge(String username) {
+        Staff oi = staffRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Office Incharge not found"));
+        return leaveRequestRepository.findByStaffOfficeInchargeId(oi.getId())
                 .stream().map(LeaveRequestResponseDTO::from).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<LeaveRequestResponseDTO> getAllRequests(RequestStatus status) {
+        List<LeaveRequest> list = (status != null)
+                ? leaveRequestRepository.findByStatus(status)
+                : leaveRequestRepository.findAll();
+        return list.stream().map(LeaveRequestResponseDTO::from).collect(Collectors.toList());
     }
 }

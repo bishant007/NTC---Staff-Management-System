@@ -1,10 +1,6 @@
 package com.ntc.backend.controller;
 
-import com.ntc.backend.dto.ApiResponse;
-import com.ntc.backend.dto.ApprovalDTO;
-import com.ntc.backend.dto.LeaveRequestResponseDTO;
-import com.ntc.backend.dto.StaffCreateDTO;
-import com.ntc.backend.dto.StaffResponseDTO;
+import com.ntc.backend.dto.*;
 import com.ntc.backend.entity.Staff;
 import com.ntc.backend.repository.StaffRepository;
 import com.ntc.backend.service.ApprovalService;
@@ -16,6 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -28,39 +25,38 @@ public class SectionHeadController {
     @Autowired private StaffRepository staffRepository;
 
     @GetMapping("/requests")
-    public List<LeaveRequestResponseDTO> getPendingRequests(Authentication auth) {
+    public List<LeaveRequestResponseDTO> pending(Authentication auth) {
         return leaveRequestService.getPendingForSectionHead(auth.getName());
     }
 
     @GetMapping("/history")
-    public List<LeaveRequestResponseDTO> getHistory(Authentication auth) {
+    public List<LeaveRequestResponseDTO> history(Authentication auth) {
         return leaveRequestService.getHistoryForSectionHead(auth.getName());
     }
 
     @PutMapping("/requests/{id}/approve")
     public ApiResponse approve(@PathVariable Long id, @RequestBody ApprovalDTO dto, Authentication auth) {
         approvalService.approveBySectionHead(id, dto.getSignature(), dto.getNotes(), auth.getName());
-        return new ApiResponse(true, "Approved and forwarded to department head");
+        return new ApiResponse(true, "Forwarded to Office Incharge");
     }
 
     @PutMapping("/requests/{id}/reject")
     public ApiResponse reject(@PathVariable Long id, @RequestBody ApprovalDTO dto, Authentication auth) {
-        approvalService.rejectBySectionHead(id, dto.getRejectionReason(), auth.getName());
+        approvalService.rejectBySectionHead(id, dto.getSignature(), dto.getRejectionReason(), auth.getName());
         return new ApiResponse(true, "Request rejected");
     }
 
-    // ---------- UPDATED: return credentials map ----------
     @PostMapping("/staff")
     public ApiResponse createStaff(@Valid @RequestBody StaffCreateDTO dto, Authentication auth) {
-        java.util.Map<String, Object> result = staffService.createStaffWithCredentials(dto, auth.getName());
-        return new ApiResponse(true, "Staff created", result);
+        Map<String, Object> r = staffService.createStaffWithCredentials(dto, auth.getName());
+        return new ApiResponse(true, "Staff created", r);
     }
 
     @GetMapping("/my-staff")
     public List<StaffResponseDTO> myStaff(Authentication auth) {
-        Staff head = staffRepository.findByStaffId(auth.getName())
-                .orElseThrow(() -> new RuntimeException("Head not found"));
-        return staffRepository.findBySectionHeadId(head.getId())
+        Staff sh = staffRepository.findByUsername(auth.getName())
+                .orElseThrow(() -> new RuntimeException("Not found"));
+        return staffRepository.findBySectionHeadId(sh.getId())
                 .stream().map(StaffResponseDTO::from).collect(Collectors.toList());
     }
 }

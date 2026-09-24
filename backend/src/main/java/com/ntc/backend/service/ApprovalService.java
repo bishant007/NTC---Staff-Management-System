@@ -2,8 +2,8 @@ package com.ntc.backend.service;
 
 import com.ntc.backend.entity.LeaveRequest;
 import com.ntc.backend.entity.Staff;
+import com.ntc.backend.enums.NoticeType;
 import com.ntc.backend.enums.RequestStatus;
-import com.ntc.backend.enums.StaffRole;
 import com.ntc.backend.repository.LeaveRequestRepository;
 import com.ntc.backend.repository.StaffRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,131 +19,128 @@ public class ApprovalService {
     @Autowired private StaffRepository staffRepository;
     @Autowired private EmailService emailService;
     @Autowired private LeaveBalanceService leaveBalanceService;
+    @Autowired private NoticeService noticeService;
 
-    // ================= SECTION HEAD =================
+    // ============ SECTION HEAD ============
     @Transactional
-    public void approveBySectionHead(Long requestId, String signature, String notes, String sectionHeadStaffId) {
-        LeaveRequest request = getRequest(requestId);
-        if (request.getStatus() != RequestStatus.PENDING_SECTION_HEAD) {
-            throw new RuntimeException("Request is not pending for section head");
-        }
+    public void approveBySectionHead(Long requestId, String signature, String notes, String username) {
+        LeaveRequest r = get(requestId);
+        if (r.getStatus() != RequestStatus.PENDING_SECTION_HEAD)
+            throw new RuntimeException("Request is not pending for Section Head");
 
-        Staff head = staffRepository.findByStaffId(sectionHeadStaffId)
+        Staff head = staffRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Section head not found"));
+        Staff owner = r.getStaff();
+        if (owner.getSectionHead() == null || !owner.getSectionHead().getId().equals(head.getId()))
+            throw new RuntimeException("You are not the assigned Section Head for this staff");
 
-        Staff owner = request.getStaff();
-        Staff assigned = owner.getSectionHead();
-        if (assigned == null || !assigned.getStaffId().equals(head.getStaffId())) {
-            throw new RuntimeException("You are not the assigned section head for this staff member");
-        }
-
-        request.setSectionHeadSignature(signature != null ? signature : head.getFullName());
-        request.setSectionHeadNotes(notes);
-        request.setSectionHeadApprovedAt(Instant.now());
-        request.setStatus(RequestStatus.PENDING_DEPARTMENT_HEAD);
-        leaveRequestRepository.save(request);
+        r.setSectionHeadSignature(signature);
+        r.setSectionHeadNotes(notes);
+        r.setSectionHeadApprovedAt(Instant.now());
+        r.setStatus(RequestStatus.PENDING_OFFICE_INCHARGE);
+        leaveRequestRepository.save(r);
 
         try {
-            emailService.sendRequestStatusUpdate(
-                    owner.getEmail(), owner.getStaffId(),
-                    "Forwarded to Department Head",
-                    "Your leave request was approved by section head and is pending department head approval."
-            );
+            emailService.sendRequestStatusUpdate(owner.getEmail(), owner.getFullName(),
+                    r.getReferenceNumber(), "Forwarded to Office Incharge",
+                    "Your request has been reviewed and forwarded by the Section Head.");
         } catch (Exception ignored) {}
     }
 
     @Transactional
-    public void rejectBySectionHead(Long requestId, String rejectionReason, String sectionHeadStaffId) {
-        LeaveRequest request = getRequest(requestId);
-        if (request.getStatus() != RequestStatus.PENDING_SECTION_HEAD) {
-            throw new RuntimeException("Request is not pending for section head");
-        }
+    public void rejectBySectionHead(Long requestId, String signature, String reason, String username) {
+        LeaveRequest r = get(requestId);
+        if (r.getStatus() != RequestStatus.PENDING_SECTION_HEAD)
+            throw new RuntimeException("Request is not pending for Section Head");
 
-        Staff head = staffRepository.findByStaffId(sectionHeadStaffId)
+        Staff head = staffRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Section head not found"));
+        Staff owner = r.getStaff();
+        if (owner.getSectionHead() == null || !owner.getSectionHead().getId().equals(head.getId()))
+            throw new RuntimeException("You are not the assigned Section Head for this staff");
 
-        Staff owner = request.getStaff();
-        Staff assigned = owner.getSectionHead();
-        if (assigned == null || !assigned.getStaffId().equals(head.getStaffId())) {
-            throw new RuntimeException("You are not the assigned section head for this staff member");
-        }
+        r.setSectionHeadRejectSignature(signature);
+        r.setSectionHeadRejectedAt(Instant.now());
+        r.setRejectionReason(reason);
+        r.setStatus(RequestStatus.REJECTED);
+        leaveRequestRepository.save(r);
 
-        request.setRejectionReason(rejectionReason);
-        request.setStatus(RequestStatus.REJECTED);
-        leaveRequestRepository.save(request);
+        noticeService.generateNotice(r, NoticeType.REJECTION, "SECTION_HEAD", reason);
 
         try {
-            emailService.sendRequestStatusUpdate(
-                    owner.getEmail(), owner.getStaffId(), "REJECTED",
-                    "Your leave request was rejected by section head. Reason: " + rejectionReason
-            );
+            emailService.sendRequestStatusUpdate(owner.getEmail(), owner.getFullName(),
+                    r.getReferenceNumber(), "REJECTED",
+                    "Rejected by Section Head. Reason: " + reason);
         } catch (Exception ignored) {}
     }
 
-    // ================= DEPARTMENT HEAD =================
+    // ============ OFFICE INCHARGE ============
     @Transactional
-    public void approveByDepartmentHead(Long requestId, String signature, String notes, String deptHeadStaffId) {
-        LeaveRequest request = getRequest(requestId);
-        if (request.getStatus() != RequestStatus.PENDING_DEPARTMENT_HEAD) {
-            throw new RuntimeException("Request is not pending for department head");
+    public void approveByOfficeIncharge(Long requestId, String signature, String notes, String username) {
+        LeaveRequest r = get(requestId);
+        if (r.getStatus() != RequestStatus.PENDING_OFFICE_INCHARGE
+                && r.getStatus() != RequestStatus.PENDING_SELF_APPROVAL)
+            throw new RuntimeException("Request is not pending for Office Incharge");
+
+        Staff oi = staffRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Office Incharge not found"));
+        Staff owner = r.getStaff();
+
+        // For self-leave, owner == oi. For others, verify assigned.
+        if (!owner.getId().equals(oi.getId())) {
+            if (owner.getOfficeIncharge() == null || !owner.getOfficeIncharge().getId().equals(oi.getId()))
+                throw new RuntimeException("You are not the assigned Office Incharge for this staff");
         }
 
-        Staff head = staffRepository.findByStaffId(deptHeadStaffId)
-                .orElseThrow(() -> new RuntimeException("Department head not found"));
+        r.setOfficeInchargeSignature(signature);
+        r.setOfficeInchargeNotes(notes);
+        r.setOfficeInchargeApprovedAt(Instant.now());
+        r.setStatus(RequestStatus.APPROVED);
+        leaveRequestRepository.save(r);
 
-        Staff owner = request.getStaff();
-        Staff assigned = owner.getDepartmentHead();
-        if (assigned == null || !assigned.getStaffId().equals(head.getStaffId())) {
-            throw new RuntimeException("You are not the assigned department head for this staff member");
-        }
+        try { leaveBalanceService.deductLeave(owner, r.getLeaveType(), 1); } catch (Exception ignored) {}
 
-        request.setDepartmentHeadSignature(signature != null ? signature : head.getFullName());
-        request.setDepartmentHeadNotes(notes);
-        request.setDepartmentHeadApprovedAt(Instant.now());
-        request.setStatus(RequestStatus.APPROVED);
-        leaveRequestRepository.save(request);
+        noticeService.generateNotice(r, NoticeType.APPROVAL, "OFFICE_INCHARGE", notes);
 
         try {
-            leaveBalanceService.deductLeave(owner, request.getLeaveType(), 1);
-        } catch (Exception ignored) {}
-
-        try {
-            emailService.sendRequestStatusUpdate(
-                    owner.getEmail(), owner.getStaffId(), "APPROVED",
-                    "Your leave request has been approved by department head."
-            );
+            emailService.sendRequestStatusUpdate(owner.getEmail(), owner.getFullName(),
+                    r.getReferenceNumber(), "APPROVED",
+                    "Your leave request has been approved by the Office Incharge.");
         } catch (Exception ignored) {}
     }
 
     @Transactional
-    public void rejectByDepartmentHead(Long requestId, String rejectionReason, String deptHeadStaffId) {
-        LeaveRequest request = getRequest(requestId);
-        if (request.getStatus() != RequestStatus.PENDING_DEPARTMENT_HEAD) {
-            throw new RuntimeException("Request is not pending for department head");
+    public void rejectByOfficeIncharge(Long requestId, String signature, String reason, String username) {
+        LeaveRequest r = get(requestId);
+        if (r.getStatus() != RequestStatus.PENDING_OFFICE_INCHARGE
+                && r.getStatus() != RequestStatus.PENDING_SELF_APPROVAL)
+            throw new RuntimeException("Request is not pending for Office Incharge");
+
+        Staff oi = staffRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Office Incharge not found"));
+        Staff owner = r.getStaff();
+
+        if (!owner.getId().equals(oi.getId())) {
+            if (owner.getOfficeIncharge() == null || !owner.getOfficeIncharge().getId().equals(oi.getId()))
+                throw new RuntimeException("You are not the assigned Office Incharge for this staff");
         }
 
-        Staff head = staffRepository.findByStaffId(deptHeadStaffId)
-                .orElseThrow(() -> new RuntimeException("Department head not found"));
+        r.setOfficeInchargeRejectSignature(signature);
+        r.setOfficeInchargeRejectedAt(Instant.now());
+        r.setRejectionReason(reason);
+        r.setStatus(RequestStatus.REJECTED);
+        leaveRequestRepository.save(r);
 
-        Staff owner = request.getStaff();
-        Staff assigned = owner.getDepartmentHead();
-        if (assigned == null || !assigned.getStaffId().equals(head.getStaffId())) {
-            throw new RuntimeException("You are not the assigned department head for this staff member");
-        }
-
-        request.setRejectionReason(rejectionReason);
-        request.setStatus(RequestStatus.REJECTED);
-        leaveRequestRepository.save(request);
+        noticeService.generateNotice(r, NoticeType.REJECTION, "OFFICE_INCHARGE", reason);
 
         try {
-            emailService.sendRequestStatusUpdate(
-                    owner.getEmail(), owner.getStaffId(), "REJECTED",
-                    "Your leave request was rejected by department head. Reason: " + rejectionReason
-            );
+            emailService.sendRequestStatusUpdate(owner.getEmail(), owner.getFullName(),
+                    r.getReferenceNumber(), "REJECTED",
+                    "Rejected by Office Incharge. Reason: " + reason);
         } catch (Exception ignored) {}
     }
 
-    private LeaveRequest getRequest(Long id) {
+    private LeaveRequest get(Long id) {
         return leaveRequestRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Leave request not found"));
     }
