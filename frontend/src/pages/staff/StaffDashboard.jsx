@@ -1,3 +1,4 @@
+// src/pages/staff/StaffDashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -107,9 +108,11 @@ function StatCard({ label, value, color }) {
 function pill(status) {
   const map = {
     PENDING_SECTION_HEAD:    '#fef3c7',
-    PENDING_DEPARTMENT_HEAD: '#dbeafe',
+    PENDING_OFFICE_INCHARGE: '#dbeafe',
+    PENDING_SELF_APPROVAL:   '#e0e7ff',
     APPROVED: '#d1fae5',
     REJECTED: '#fee2e2',
+    CANCELLED: '#f1f5f9',
   };
   return {
     padding: '4px 10px', borderRadius: 20, fontSize: 11,

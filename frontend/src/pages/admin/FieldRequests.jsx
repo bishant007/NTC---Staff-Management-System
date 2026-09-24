@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import { getLeaveRequests } from '../../services/authService';
 import AdminSidebar from '../../components/AdminSidebar';
 
@@ -34,7 +33,7 @@ function FieldRequests() {
         <h1 style={{ color: '#0b2e6f', marginBottom: 4 }}>Leave Requests</h1>
         <p style={{ color: '#5b7bab', marginTop: 0 }}>
           System-wide view for monitoring. Admins can see but not act on requests — approvals
-          are handled by Section Heads and Department Heads.
+          are handled by Section Heads and the Office Incharge.
         </p>
 
         {message && <p style={{ color: '#dc3545' }}>{message}</p>}
@@ -54,7 +53,8 @@ function FieldRequests() {
           >
             <option value="">All</option>
             <option value="PENDING_SECTION_HEAD">Pending Section Head</option>
-            <option value="PENDING_DEPARTMENT_HEAD">Pending Department Head</option>
+            <option value="PENDING_OFFICE_INCHARGE">Pending Office Incharge</option>
+            <option value="PENDING_SELF_APPROVAL">Pending Self Approval</option>
             <option value="APPROVED">Approved</option>
             <option value="REJECTED">Rejected</option>
             <option value="CANCELLED">Cancelled</option>
@@ -71,21 +71,23 @@ function FieldRequests() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f8fafc' }}>
+                  <th style={th}>Ref No.</th>
                   <th style={th}>Staff</th>
                   <th style={th}>Leave Type</th>
                   <th style={th}>Reason</th>
                   <th style={th}>Return Date</th>
                   <th style={th}>Section Head</th>
-                  <th style={th}>Dept Head</th>
+                  <th style={th}>Office Incharge</th>
                   <th style={th}>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {requests.map((req) => (
                   <tr key={req.id} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ ...td, fontWeight: 700, color: '#0d6efd', fontSize: 12 }}>{req.referenceNumber || '—'}</td>
                     <td style={td}>
-                      <div style={{ fontWeight: 600 }}>{req.staffName || req.staff?.fullName || '—'}</div>
-                      <div style={{ fontSize: 12, color: '#94a3b8' }}>{req.staffId || req.staff?.staffId}</div>
+                      <div style={{ fontWeight: 600 }}>{req.staffName || '—'}</div>
+                      <div style={{ fontSize: 12, color: '#94a3b8' }}>{req.staffId}</div>
                     </td>
                     <td style={td}>{req.leaveType}</td>
                     <td style={{ ...td, maxWidth: 240, fontSize: 13, color: '#475569' }}>
@@ -93,15 +95,15 @@ function FieldRequests() {
                     </td>
                     <td style={{ ...td, fontSize: 13 }}>{fmt(req.returnDateTime)}</td>
                     <td style={{ ...td, fontSize: 13 }}>
-                      {req.sectionHeadName
-                        ? <><div style={{ fontWeight: 600 }}>{req.sectionHeadName}</div>
-                            <div style={{ fontSize: 12, color: '#94a3b8' }}>{req.sectionHeadSignature || 'no signature'}</div></>
+                      {req.sectionHeadSignature
+                        ? <><div style={{ fontWeight: 600 }}>{req.sectionHeadName || '—'}</div>
+                            <div style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>{req.sectionHeadSignature}</div></>
                         : <span style={{ color: '#cbd5e1' }}>—</span>}
                     </td>
                     <td style={{ ...td, fontSize: 13 }}>
-                      {req.departmentHeadName
-                        ? <><div style={{ fontWeight: 600 }}>{req.departmentHeadName}</div>
-                            <div style={{ fontSize: 12, color: '#94a3b8' }}>{req.departmentHeadSignature || 'no signature'}</div></>
+                      {req.officeInchargeSignature
+                        ? <><div style={{ fontWeight: 600 }}>{req.officeInchargeName || '—'}</div>
+                            <div style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>{req.officeInchargeSignature}</div></>
                         : <span style={{ color: '#cbd5e1' }}>—</span>}
                     </td>
                     <td style={td}><StatusPill status={req.status} /></td>
@@ -118,7 +120,7 @@ function FieldRequests() {
           fontSize: 13, color: '#075985'
         }}>
           🔒 <strong>Admin access is read-only.</strong> Requests can only be approved or
-          rejected by the assigned Section Head and Department Head. This preserves the
+          rejected by the assigned Section Head and Office Incharge. This preserves the
           integrity of the approval chain.
         </div>
       </div>
@@ -129,7 +131,8 @@ function FieldRequests() {
 function StatusPill({ status }) {
   const styles = {
     PENDING_SECTION_HEAD:    { bg: '#fef3c7', fg: '#92400e' },
-    PENDING_DEPARTMENT_HEAD: { bg: '#dbeafe', fg: '#1e40af' },
+    PENDING_OFFICE_INCHARGE: { bg: '#dbeafe', fg: '#1e40af' },
+    PENDING_SELF_APPROVAL:   { bg: '#e0e7ff', fg: '#3730a3' },
     APPROVED:                { bg: '#d1fae5', fg: '#065f46' },
     REJECTED:                { bg: '#fee2e2', fg: '#991b1b' },
     CANCELLED:               { bg: '#e5e7eb', fg: '#374151' },

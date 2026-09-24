@@ -11,24 +11,33 @@ function NewRequest() {
   const [startDateTime, setStartDateTime] = useState('');
   const [returnDateTime, setReturnDateTime] = useState('');
   const [leaveType, setLeaveType] = useState('FULL_DAY');
+  const [signature, setSignature] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitting(true);
     setMessage('');
 
     if (new Date(returnDateTime) <= new Date(startDateTime)) {
       setMessage('❌ Return date/time must be after start date/time');
-      setSubmitting(false);
+      return;
+    }
+    if (!signature.trim()) {
+      setMessage('❌ Please type your signature before submitting');
       return;
     }
 
+    setSubmitting(true);
     try {
-      const res = await submitLeaveRequest(
-        user.staffId, reason, startDateTime, returnDateTime, leaveType
-      );
+      const res = await submitLeaveRequest({
+        staffId: user.staffId,
+        reason,
+        startDateTime,
+        returnDateTime,
+        leaveType,
+        signature,
+      });
       if (res.data.success) {
         setMessage('✅ Leave request submitted successfully!');
         setTimeout(() => navigate('/staff/my-requests'), 800);
@@ -74,6 +83,10 @@ function NewRequest() {
             <label style={lbl}>Expected Return Date & Time</label>
             <input type="datetime-local" value={returnDateTime}
               onChange={e => setReturnDateTime(e.target.value)} required style={inp} />
+
+            <label style={lbl}>Digital Signature (type your full name)</label>
+            <input value={signature} onChange={e => setSignature(e.target.value)}
+              placeholder="e.g. Ramesh Bahadur" required style={inp} />
 
             <button type="submit" disabled={submitting} style={{
               width: '100%', padding: 14, marginTop: 20,

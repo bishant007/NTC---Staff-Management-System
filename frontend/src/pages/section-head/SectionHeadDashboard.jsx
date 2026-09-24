@@ -1,3 +1,4 @@
+// src/pages/section-head/SectionHeadDashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -28,8 +29,8 @@ function SectionHeadDashboard() {
 
   const today = new Date().toDateString();
   const approvedToday = history.filter(r =>
-    r.status === 'APPROVED' && r.departmentHeadApprovedAt &&
-    new Date(r.departmentHeadApprovedAt).toDateString() === today
+    r.status === 'APPROVED' && r.officeInchargeApprovedAt &&
+    new Date(r.officeInchargeApprovedAt).toDateString() === today
   ).length;
 
   const actedByMe = history.filter(r => r.sectionHeadApprovedAt).length;

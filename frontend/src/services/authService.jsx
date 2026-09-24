@@ -1,104 +1,67 @@
 import api from './api';
 
-// ---------- Admin ----------
-export const adminLogin = (email, password) =>
-  api.post('/admin/login', { email, password });
+// ---- Auth ----
+export const unifiedLogin = (username, password) =>
+  api.post('/auth/login', { username, password });
 
-export const createStaff = (staffData) =>
-  api.post('/admin/staff', staffData);
-
-export const getAllStaff = () =>
-  api.get('/admin/staff');
-
-export const getStaffByStaffId = (staffId) =>                    // <-- NEW
-  api.get(`/admin/staff/${staffId}`);
-
-export const updateStaff = (staffId, data) =>                    // <-- NEW
-  api.put(`/admin/staff/${staffId}`, data);
-
+// ---- Admin ----
+export const createStaff = (data) => api.post('/admin/staff', data);
+export const getAllStaff = () => api.get('/admin/staff');
+export const getStaffByStaffId = (id) => api.get(`/admin/staff/${id}`);
+export const updateStaff = (id, data) => api.put(`/admin/staff/${id}`, data);
 export const getLeaveRequests = (status) =>
   api.get('/admin/requests', { params: { status } });
+export const getDashboardStats = () => api.get('/dashboard');
 
-export const updateRequestStatus = (id, status, adminRemarks) =>
-  api.put(`/admin/requests/${id}/status`, { status, adminRemarks });
-
-// ---------- Staff ----------
-export const staffLogin = (staffId, password) =>
-  api.post('/login', { staffId, password });
-
+// ---- Staff ----
 export const resetPassword = (staffId, oldPassword, newPassword) =>
   api.post('/staff/reset-password', { staffId, oldPassword, newPassword });
+export const submitLeaveRequest = (payload) =>
+  api.post('/staff/leave-request', payload);
+export const getMyRequests = (staffId) => api.get(`/staff/requests/${staffId}`);
+export const cancelMyRequest = (id) => api.put(`/staff/requests/${id}/cancel`);
 
-export const submitLeaveRequest = (staffId, reason, startDateTime, returnDateTime, leaveType) =>
-  api.post('/staff/leave-request', { staffId, reason, startDateTime, returnDateTime, leaveType });
-
-export const getMyRequests = (staffId) =>
-  api.get(`/staff/requests/${staffId}`);
-
-export const cancelMyRequest = (id) =>
-  api.put(`/staff/requests/${id}/cancel`);
-
-// ---------- Section Head ----------
-export const getSectionHeadRequests = () =>
-  api.get('/section-head/requests');
-
-export const getSectionHeadHistory = () =>
-  api.get('/section-head/history');
-
+// ---- Section Head ----
+export const getSectionHeadRequests = () => api.get('/section-head/requests');
+export const getSectionHeadHistory = () => api.get('/section-head/history');
 export const approveBySectionHead = (id, signature, notes = '') =>
   api.put(`/section-head/requests/${id}/approve`, { requestId: id, signature, notes });
+export const rejectBySectionHead = (id, signature, reason) =>
+  api.put(`/section-head/requests/${id}/reject`, { requestId: id, signature, rejectionReason: reason });
+export const createStaffBySectionHead = (data) => api.post('/section-head/staff', data);
+export const getMyStaff = () => api.get('/section-head/my-staff');
 
-export const rejectBySectionHead = (id, reason) =>
-  api.put(`/section-head/requests/${id}/reject`, { requestId: id, rejectionReason: reason });
+// ---- Office Incharge ----
+export const getOfficeInchargeRequests = () => api.get('/office-incharge/requests');
+export const getOfficeInchargeHistory = () => api.get('/office-incharge/history');
+export const approveByOfficeIncharge = (id, signature, notes = '') =>
+  api.put(`/office-incharge/requests/${id}/approve`, { requestId: id, signature, notes });
+export const rejectByOfficeIncharge = (id, signature, reason) =>
+  api.put(`/office-incharge/requests/${id}/reject`, { requestId: id, signature, rejectionReason: reason });
+export const createStaffByOfficeIncharge = (data) => api.post('/office-incharge/staff', data);
+export const getMySectionHeads = () => api.get('/office-incharge/my-section-heads');
+export const getOfficeInchargeStaff = () => api.get('/office-incharge/my-staff');
 
-export const createStaffBySectionHead = (data) =>
-  api.post('/section-head/staff', data);
+// ---- Notices ----
+export const getAllNotices = () => api.get('/notices');
+export const getNotice = (id) => api.get(`/notices/${id}`);
+export const getNoticeByRequest = (requestId) => api.get(`/notices/by-request/${requestId}`);
 
-export const getMyStaff = () =>
-  api.get('/section-head/my-staff', { params: { _t: Date.now() } });
+// ---- Reports ----
+export const getAdminReport = (status) =>
+  api.get('/reports/admin', { params: { status } });
+export const getOfficeInchargeReport = () => api.get('/reports/office-incharge');
+export const getSectionHeadReport = () => api.get('/reports/section-head');
 
-// ---------- Department Head ----------
-export const getDeptHeadRequests = () =>
-  api.get('/department-head/requests');
-
-export const getDeptHeadHistory = () =>
-  api.get('/department-head/history');
-
-export const approveByDeptHead = (id, signature, notes = '') =>
-  api.put(`/department-head/requests/${id}/approve`, { requestId: id, signature, notes });
-
-export const rejectByDeptHead = (id, reason) =>
-  api.put(`/department-head/requests/${id}/reject`, { requestId: id, rejectionReason: reason });
-
-export const createStaffByDeptHead = (data) =>
-  api.post('/department-head/staff', data);
-
-export const getMySectionHeads = () =>
-  api.get('/department-head/my-section-heads', { params: { _t: Date.now() } });
-
-// ---------- Profile ----------
-export const getMyProfile = () =>
-  api.get('/profile/me', { params: { _t: Date.now() } });
-
+// ---- Profile ----
+export const getMyProfile = () => api.get('/profile/me');
 export const uploadMySignature = (file) => {
   const fd = new FormData();
   fd.append('file', file);
-  return api.post('/profile/signature', fd, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
+  return api.post('/profile/signature', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
 };
-
-export const deleteMySignature = () =>
-  api.delete('/profile/signature');
-
+export const deleteMySignature = () => api.delete('/profile/signature');
 export const getSignatureBlob = async (staffId) => {
-  const res = await api.get(`/profile/signature/${staffId}`, {
-    responseType: 'blob',
-    params: { _t: Date.now() },
-  });
+  const res = await api.get(`/profile/signature/${staffId}`, { responseType: 'blob' });
   return URL.createObjectURL(res.data);
 };
-
-// ---------- Dashboard (admin) ----------
-export const getDashboardStats = () =>
-  api.get('/dashboard');
