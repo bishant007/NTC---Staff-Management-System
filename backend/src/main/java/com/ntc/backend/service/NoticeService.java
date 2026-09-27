@@ -31,7 +31,7 @@ public class NoticeService {
 
         Staff staff = request.getStaff();
 
-        // Snapshot: staff (key=value lines, no JSON library needed)
+        // Snapshot: staff
         StringBuilder sb = new StringBuilder();
         sb.append("staffId=").append(nz(staff.getStaffId())).append("\n");
         sb.append("username=").append(nz(staff.getUsername())).append("\n");
@@ -75,7 +75,7 @@ public class NoticeService {
         s.append("reason=").append(nz(request.getReason())).append("\n");
         n.setLeaveSummary(s.toString());
 
-        // Signatures
+        // Typed-name signatures (human-readable)
         n.setStaffSignature(request.getStaffSignature());
         n.setSectionHeadSignature(
                 request.getSectionHeadSignature() != null
@@ -87,6 +87,11 @@ public class NoticeService {
                         ? request.getOfficeInchargeSignature()
                         : request.getOfficeInchargeRejectSignature()
         );
+
+        // ===== NEW: Copy image filename snapshots for the PDF =====
+        n.setStaffSignatureImage(request.getStaffSignatureImage());
+        n.setSectionHeadSignatureImage(request.getSectionHeadSignatureImage());
+        n.setOfficeInchargeSignatureImage(request.getOfficeInchargeSignatureImage());
 
         return noticeRepository.save(n);
     }

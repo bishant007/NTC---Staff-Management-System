@@ -8,13 +8,13 @@ function StaffManagement() {
   const [activeTab, setActiveTab] = useState('list');
   const [allStaff, setAllStaff] = useState([]);
   const [sectionHeads, setSectionHeads] = useState([]);
-  const [deptHeads, setDeptHeads] = useState([]);
+  const [officeIncharges, setOfficeIncharges] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [createdCreds, setCreatedCreds] = useState(null);   // ← NEW
+  const [createdCreds, setCreatedCreds] = useState(null);
   const [formData, setFormData] = useState({
     fullName: '', phone: '', email: '',
     department: '', branch: '',
-    role: 'STAFF', sectionHeadId: '', departmentHeadId: '',
+    role: 'STAFF', sectionHeadId: '', officeInchargeId: '',
   });
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
@@ -27,7 +27,7 @@ function StaffManagement() {
       const list = res.data || [];
       setAllStaff(list);
       setSectionHeads(list.filter(s => s.role === 'SECTION_HEAD'));
-      setDeptHeads(list.filter(s => s.role === 'DEPARTMENT_HEAD'));
+      setOfficeIncharges(list.filter(s => s.role === 'OFFICE_INCHARGE'));
     } catch (err) { console.error(err); }
     finally { setFetchLoading(false); }
   };
@@ -36,13 +36,20 @@ function StaffManagement() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+      if (name === 'role') {
+        next.sectionHeadId = '';
+        next.officeInchargeId = '';
+      }
+      return next;
+    });
   };
 
   const resetForm = () => setFormData({
     fullName: '', phone: '', email: '',
     department: '', branch: '',
-    role: 'STAFF', sectionHeadId: '', departmentHeadId: '',
+    role: 'STAFF', sectionHeadId: '', officeInchargeId: '',
   });
 
   const handleSubmit = async (e) => {
@@ -51,8 +58,7 @@ function StaffManagement() {
     try {
       const res = await createStaff(formData);
       if (res.data.success) {
-        // Show credentials modal
-        setCreatedCreds(res.data.data);      // { staffId, fullName, email, tempPassword, role }
+        setCreatedCreds(res.data.data);
         setSuccess(true);
         setMessage('✅ Account created successfully.');
         resetForm();
@@ -63,7 +69,9 @@ function StaffManagement() {
       }
     } catch (err) {
       setMessage('❌ ' + (err.response?.data?.message || err.message));
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const saveEdit = async () => {
@@ -78,7 +86,9 @@ function StaffManagement() {
       } else setMessage('❌ ' + res.data.message);
     } catch (err) {
       setMessage('❌ ' + (err.response?.data?.message || err.message));
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -115,41 +125,44 @@ function StaffManagement() {
                   <thead>
                     <tr style={{ background: '#f8fafc' }}>
                       <th style={th}>Staff ID</th>
+                      <th style={th}>Username</th>
                       <th style={th}>Name</th>
                       <th style={th}>Email</th>
                       <th style={th}>Role</th>
                       <th style={th}>Dept / Branch</th>
                       <th style={th}>Section Head</th>
-                      <th style={th}>Dept Head</th>
+                      <th style={th}>Office Incharge</th>
                       <th style={th}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {allStaff.map(s => (
                       <tr key={s.id} style={{ borderBottom: '1px solid #eee' }}>
-                        <td style={{ ...td, fontWeight: 700, color: '#0d6efd' }}>{s.staffId}</td>
+                        <td style={{ ...td, fontWeight: 700, color: '#0d6efd', fontSize: 12 }}>{s.staffId}</td>
+                        <td style={{ ...td, fontWeight: 600, fontFamily: 'monospace', fontSize: 12 }}>{s.username}</td>
                         <td style={td}>{s.fullName}</td>
-                        <td style={td}>{s.email}</td>
+                        <td style={{ ...td, fontSize: 13 }}>{s.email}</td>
                         <td style={td}><RoleBadge role={s.role} /></td>
-                        <td style={td}>{s.department} · {s.branch}</td>
+                        <td style={{ ...td, fontSize: 13 }}>{s.department} · {s.branch}</td>
                         <td style={{ ...td, fontSize: 12, color: '#64748b' }}>
-                          {s.sectionHeadName || s.sectionHeadStaffId || '—'}
+                          {s.sectionHeadName || '—'}
                         </td>
                         <td style={{ ...td, fontSize: 12, color: '#64748b' }}>
-                          {s.departmentHeadName || s.departmentHeadStaffId || '—'}
+                          {s.officeInchargeName || '—'}
                         </td>
                         <td style={td}>
                           <button
                             onClick={() => setEditing({
                               staffId: s.staffId,
                               fullName: s.fullName,
+                              username: s.username,
                               phone: s.phone,
                               email: s.email,
                               department: s.department,
                               branch: s.branch,
                               role: s.role,
                               sectionHeadId: s.sectionHeadStaffId || '',
-                              departmentHeadId: s.departmentHeadStaffId || '',
+                              officeInchargeId: s.officeInchargeStaffId || '',
                               newPassword: '',
                             })}
                             style={{
@@ -173,18 +186,37 @@ function StaffManagement() {
             <h2 style={{ marginTop: 0 }}>Create New Account</h2>
             <form onSubmit={handleSubmit}>
               <div style={grid2}>
-                <Field label="Full Name *"><input name="fullName" value={formData.fullName} onChange={handleChange} required style={inp} /></Field>
-                <Field label="Phone *"><input name="phone" value={formData.phone} onChange={handleChange} required style={inp} /></Field>
-                <Field label="Email *"><input type="email" name="email" value={formData.email} onChange={handleChange} required style={inp} /></Field>
+                <Field label="Full Name *">
+                  <input name="fullName" value={formData.fullName} onChange={handleChange} required style={inp} />
+                </Field>
+                <Field label="Phone *">
+                  <input name="phone" value={formData.phone} onChange={handleChange} required style={inp} />
+                </Field>
+                <Field label="Email *">
+                  <input type="email" name="email" value={formData.email} onChange={handleChange} required style={inp} />
+                </Field>
                 <Field label="Role *">
                   <select name="role" value={formData.role} onChange={handleChange} style={inp}>
                     <option value="STAFF">Staff</option>
                     <option value="SECTION_HEAD">Section Head</option>
-                    <option value="DEPARTMENT_HEAD">Department Head</option>
+                    <option value="OFFICE_INCHARGE">Office Incharge</option>
                   </select>
                 </Field>
-                <Field label="Department *"><input name="department" value={formData.department} onChange={handleChange} required style={inp} /></Field>
-                <Field label="Branch *"><input name="branch" value={formData.branch} onChange={handleChange} required style={inp} /></Field>
+                <Field label="Department *">
+                  <input name="department" value={formData.department} onChange={handleChange} required style={inp} />
+                </Field>
+                <Field label="Branch *">
+                  <input name="branch" value={formData.branch} onChange={handleChange} required style={inp} />
+                </Field>
+              </div>
+
+              <div style={{
+                marginTop: 12, padding: 12, borderRadius: 10,
+                background: '#f0f9ff', border: '1px dashed #0d6efd',
+                fontSize: 13, color: '#1e40af',
+              }}>
+                ℹ️ Username is auto-generated as <code>firstname.role@ntc.com</code>. If it's
+                already taken, a number is appended (e.g. <code>bishant.staff2@ntc.com</code>).
               </div>
 
               {formData.role === 'STAFF' && (
@@ -192,18 +224,22 @@ function StaffManagement() {
                   <h3 style={sectionH}>Reporting Chain</h3>
                   <div style={grid2}>
                     <Field label="Section Head *">
-                      <select name="sectionHeadId" value={formData.sectionHeadId} onChange={handleChange} style={inp}>
+                      <select name="sectionHeadId" value={formData.sectionHeadId} onChange={handleChange} required style={inp}>
                         <option value="">-- Select Section Head --</option>
                         {sectionHeads.map(h => (
-                          <option key={h.staffId} value={h.staffId}>{h.fullName} ({h.staffId}) — {h.department}</option>
+                          <option key={h.staffId} value={h.staffId}>
+                            {h.fullName} ({h.username}) — {h.department}
+                          </option>
                         ))}
                       </select>
                     </Field>
-                    <Field label="Department Head *">
-                      <select name="departmentHeadId" value={formData.departmentHeadId} onChange={handleChange} style={inp}>
-                        <option value="">-- Select Department Head --</option>
-                        {deptHeads.map(h => (
-                          <option key={h.staffId} value={h.staffId}>{h.fullName} ({h.staffId}) — {h.department}</option>
+                    <Field label="Office Incharge *">
+                      <select name="officeInchargeId" value={formData.officeInchargeId} onChange={handleChange} required style={inp}>
+                        <option value="">-- Select Office Incharge --</option>
+                        {officeIncharges.map(h => (
+                          <option key={h.staffId} value={h.staffId}>
+                            {h.fullName} ({h.username}) — {h.department}
+                          </option>
                         ))}
                       </select>
                     </Field>
@@ -214,20 +250,22 @@ function StaffManagement() {
               {formData.role === 'SECTION_HEAD' && (
                 <>
                   <h3 style={sectionH}>Reporting Chain</h3>
-                  <Field label="Department Head *">
-                    <select name="departmentHeadId" value={formData.departmentHeadId} onChange={handleChange} style={inp}>
-                      <option value="">-- Select Department Head --</option>
-                      {deptHeads.map(h => (
-                        <option key={h.staffId} value={h.staffId}>{h.fullName} ({h.staffId}) — {h.department}</option>
+                  <Field label="Office Incharge *">
+                    <select name="officeInchargeId" value={formData.officeInchargeId} onChange={handleChange} required style={inp}>
+                      <option value="">-- Select Office Incharge --</option>
+                      {officeIncharges.map(h => (
+                        <option key={h.staffId} value={h.staffId}>
+                          {h.fullName} ({h.username}) — {h.department}
+                        </option>
                       ))}
                     </select>
                   </Field>
                 </>
               )}
 
-              {formData.role === 'DEPARTMENT_HEAD' && (
-                <p style={{ marginTop: 16, padding: 12, background: '#fff7e6', borderRadius: 8, fontSize: 13, color: '#92400e' }}>
-                  ℹ️ Department Heads sit at the top of the reporting chain.
+              {formData.role === 'OFFICE_INCHARGE' && (
+                <p style={{ marginTop: 16, padding: 12, background: '#e0e7ff', borderRadius: 8, fontSize: 13, color: '#3730a3' }}>
+                  ℹ️ Office Incharge sits at the top of the reporting chain. No reporting assignments needed.
                 </p>
               )}
 
@@ -247,7 +285,7 @@ function StaffManagement() {
             editing={editing}
             setEditing={setEditing}
             sectionHeads={sectionHeads}
-            deptHeads={deptHeads}
+            officeIncharges={officeIncharges}
             onSave={saveEdit}
             loading={loading}
           />
@@ -269,6 +307,7 @@ function CredModal({ creds, onClose }) {
 `NTC Staff System — Account Credentials
 Name:     ${creds.fullName}
 Staff ID: ${creds.staffId}
+Username: ${creds.username}
 Email:    ${creds.email}
 Password: ${creds.tempPassword}
 Role:     ${creds.role}`;
@@ -281,7 +320,7 @@ Role:     ${creds.role}`;
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999
     }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{
-        background: '#fff', padding: 32, borderRadius: 16, width: 500,
+        background: '#fff', padding: 32, borderRadius: 16, width: 520,
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
       }}>
         <h2 style={{ marginTop: 0, color: '#0b2e6f' }}>✅ Account Created</h2>
@@ -291,7 +330,8 @@ Role:     ${creds.role}`;
         </p>
 
         <div style={{ marginTop: 20 }}>
-          <CredRow label="Staff ID (username for login)" value={creds.staffId} onCopy={copy} highlight />
+          <CredRow label="Username (for login)" value={creds.username} onCopy={copy} highlight />
+          <CredRow label="Staff ID (for login)" value={creds.staffId} onCopy={copy} highlight />
           <CredRow label="Full Name" value={creds.fullName} />
           <CredRow label="Email" value={creds.email} onCopy={copy} />
           <CredRow label="Temporary Password" value={creds.tempPassword} onCopy={copy} highlight />
@@ -351,8 +391,18 @@ function CredRow({ label, value, onCopy, highlight }) {
 }
 
 /* ==================== Edit Modal ==================== */
-function EditModal({ editing, setEditing, sectionHeads, deptHeads, onSave, loading }) {
-  const upd = (k, v) => setEditing({ ...editing, [k]: v });
+function EditModal({ editing, setEditing, sectionHeads, officeIncharges, onSave, loading }) {
+  const upd = (k, v) => {
+    setEditing(prev => {
+      const next = { ...prev, [k]: v };
+      if (k === 'role') {
+        next.sectionHeadId = '';
+        next.officeInchargeId = '';
+      }
+      return next;
+    });
+  };
+
   return (
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
@@ -366,39 +416,83 @@ function EditModal({ editing, setEditing, sectionHeads, deptHeads, onSave, loadi
         <h2 style={{ marginTop: 0, color: '#0b2e6f' }}>Edit: {editing.staffId}</h2>
 
         <div style={grid2}>
-          <Field label="Full Name"><input value={editing.fullName} onChange={e => upd('fullName', e.target.value)} style={inp} /></Field>
-          <Field label="Phone"><input value={editing.phone} onChange={e => upd('phone', e.target.value)} style={inp} /></Field>
-          <Field label="Email"><input value={editing.email} onChange={e => upd('email', e.target.value)} style={inp} /></Field>
+          <Field label="Full Name">
+            <input value={editing.fullName} onChange={e => upd('fullName', e.target.value)} style={inp} />
+          </Field>
+          <Field label="Username (read-only)">
+            <input value={editing.username || ''} readOnly
+              style={{ ...inp, background: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' }} />
+          </Field>
+          <Field label="Phone">
+            <input value={editing.phone} onChange={e => upd('phone', e.target.value)} style={inp} />
+          </Field>
+          <Field label="Email">
+            <input value={editing.email} onChange={e => upd('email', e.target.value)} style={inp} />
+          </Field>
           <Field label="Role">
             <select value={editing.role} onChange={e => upd('role', e.target.value)} style={inp}>
               <option value="STAFF">Staff</option>
               <option value="SECTION_HEAD">Section Head</option>
-              <option value="DEPARTMENT_HEAD">Department Head</option>
+              <option value="OFFICE_INCHARGE">Office Incharge</option>
             </select>
           </Field>
-          <Field label="Department"><input value={editing.department} onChange={e => upd('department', e.target.value)} style={inp} /></Field>
-          <Field label="Branch"><input value={editing.branch} onChange={e => upd('branch', e.target.value)} style={inp} /></Field>
+          <Field label="Department">
+            <input value={editing.department} onChange={e => upd('department', e.target.value)} style={inp} />
+          </Field>
+          <Field label="Branch">
+            <input value={editing.branch} onChange={e => upd('branch', e.target.value)} style={inp} />
+          </Field>
         </div>
 
-        <h3 style={sectionH}>Reporting Chain</h3>
-        <div style={grid2}>
-          <Field label="Section Head">
-            <select value={editing.sectionHeadId} onChange={e => upd('sectionHeadId', e.target.value)} style={inp}>
-              <option value="">-- None --</option>
-              {sectionHeads.map(h => (
-                <option key={h.staffId} value={h.staffId}>{h.fullName} ({h.staffId})</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Department Head">
-            <select value={editing.departmentHeadId} onChange={e => upd('departmentHeadId', e.target.value)} style={inp}>
-              <option value="">-- None --</option>
-              {deptHeads.map(h => (
-                <option key={h.staffId} value={h.staffId}>{h.fullName} ({h.staffId})</option>
-              ))}
-            </select>
-          </Field>
-        </div>
+        {editing.role === 'STAFF' && (
+          <>
+            <h3 style={sectionH}>Reporting Chain</h3>
+            <div style={grid2}>
+              <Field label="Section Head">
+                <select value={editing.sectionHeadId || ''} onChange={e => upd('sectionHeadId', e.target.value)} style={inp}>
+                  <option value="">-- None --</option>
+                  {sectionHeads.map(h => (
+                    <option key={h.staffId} value={h.staffId}>
+                      {h.fullName} ({h.username})
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Office Incharge">
+                <select value={editing.officeInchargeId || ''} onChange={e => upd('officeInchargeId', e.target.value)} style={inp}>
+                  <option value="">-- None --</option>
+                  {officeIncharges.map(h => (
+                    <option key={h.staffId} value={h.staffId}>
+                      {h.fullName} ({h.username})
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </>
+        )}
+
+        {editing.role === 'SECTION_HEAD' && (
+          <>
+            <h3 style={sectionH}>Reporting Chain</h3>
+            <Field label="Office Incharge">
+              <select value={editing.officeInchargeId || ''} onChange={e => upd('officeInchargeId', e.target.value)} style={inp}>
+                <option value="">-- None --</option>
+                {officeIncharges.map(h => (
+                  <option key={h.staffId} value={h.staffId}>
+                    {h.fullName} ({h.username})
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </>
+        )}
+
+        {editing.role === 'OFFICE_INCHARGE' && (
+          <p style={{ marginTop: 16, padding: 12, background: '#e0e7ff', borderRadius: 8, fontSize: 13, color: '#3730a3' }}>
+            ℹ️ Office Incharge sits at the top of the reporting chain.
+          </p>
+        )}
 
         <h3 style={sectionH}>Password Reset (optional)</h3>
         <Field label="New Password (leave blank to keep current)">
@@ -446,8 +540,8 @@ function Field({ label, children }) {
 }
 
 function RoleBadge({ role }) {
-  const colors = { STAFF: '#dbeafe', SECTION_HEAD: '#ede9fe', DEPARTMENT_HEAD: '#fce7f3' };
-  const fg = { STAFF: '#1e40af', SECTION_HEAD: '#6b21a8', DEPARTMENT_HEAD: '#9d174d' };
+  const colors = { STAFF: '#dbeafe', SECTION_HEAD: '#ede9fe', OFFICE_INCHARGE: '#fce7f3' };
+  const fg = { STAFF: '#1e40af', SECTION_HEAD: '#6b21a8', OFFICE_INCHARGE: '#9d174d' };
   return (
     <span style={{
       padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,

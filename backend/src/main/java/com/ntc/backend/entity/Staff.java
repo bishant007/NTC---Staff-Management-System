@@ -124,4 +124,8 @@ public class Staff {
 
     public List<LeaveRequest> getLeaveRequests() { return leaveRequests; }
     public void setLeaveRequests(List<LeaveRequest> leaveRequests) { this.leaveRequests = leaveRequests; }
+
+    public boolean isHasSignature() {
+        return signaturePath != null && !signaturePath.isBlank();
+    }
 }

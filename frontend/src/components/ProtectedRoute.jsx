@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 export const ProtectedRoute = ({ children, allowedRoles }) => {
   const { token, role } = useAuth();
   if (!token) return <Navigate to="/staff/login" replace />;
-  if (allowedRoles && !allowedRoles.includes(role)) return <Navigate to="/staff/login" replace />;
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    return <Navigate to="/staff/login" replace />;
+  }
   return children;
 };

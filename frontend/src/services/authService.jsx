@@ -65,3 +65,32 @@ export const getSignatureBlob = async (staffId) => {
   const res = await api.get(`/profile/signature/${staffId}`, { responseType: 'blob' });
   return URL.createObjectURL(res.data);
 };
+export const getSignatureByFilename = async (filename) => {
+  const res = await api.get(`/profile/signature-file/${filename}`, {
+    responseType: 'blob'
+  });
+  return URL.createObjectURL(res.data);
+};
+export const getSignatureBase64 = async (filename) => {
+  const res = await api.get(`/profile/signature-file/${filename}`, { responseType: 'blob' });
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(res.data);
+  });
+};
+
+// ---- Admin password reset management ----
+export const listPasswordResets = (status) =>
+  api.get('/password-reset', { params: status ? { status } : {} });
+
+export const approvePasswordReset = (id) =>
+  api.put(`/password-reset/${id}/approve`);
+
+export const rejectPasswordReset = (id, reason) =>
+  api.put(`/password-reset/${id}/reject`, { reason });
+
+// ---- Admin settings ----
+export const changeAdminPassword = (email, oldPassword, newPassword) =>
+  api.post('/admin/change-password', { email, oldPassword, newPassword });

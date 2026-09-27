@@ -30,11 +30,19 @@ public class ApprovalService {
 
         Staff head = staffRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Section head not found"));
+
+        if (head.getSignaturePath() == null || head.getSignaturePath().isBlank()) {
+            throw new RuntimeException(
+                    "You must upload your digital signature before approving. Go to My Profile."
+            );
+        }
+
         Staff owner = r.getStaff();
         if (owner.getSectionHead() == null || !owner.getSectionHead().getId().equals(head.getId()))
             throw new RuntimeException("You are not the assigned Section Head for this staff");
 
-        r.setSectionHeadSignature(signature);
+        r.setSectionHeadSignature(signature != null ? signature : head.getFullName());
+        r.setSectionHeadSignatureImage(head.getSignaturePath());
         r.setSectionHeadNotes(notes);
         r.setSectionHeadApprovedAt(Instant.now());
         r.setStatus(RequestStatus.PENDING_OFFICE_INCHARGE);
@@ -55,11 +63,19 @@ public class ApprovalService {
 
         Staff head = staffRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Section head not found"));
+
+        if (head.getSignaturePath() == null || head.getSignaturePath().isBlank()) {
+            throw new RuntimeException(
+                    "You must upload your digital signature before rejecting. Go to My Profile."
+            );
+        }
+
         Staff owner = r.getStaff();
         if (owner.getSectionHead() == null || !owner.getSectionHead().getId().equals(head.getId()))
             throw new RuntimeException("You are not the assigned Section Head for this staff");
 
         r.setSectionHeadRejectSignature(signature);
+        r.setSectionHeadSignatureImage(head.getSignaturePath());
         r.setSectionHeadRejectedAt(Instant.now());
         r.setRejectionReason(reason);
         r.setStatus(RequestStatus.REJECTED);
@@ -84,6 +100,13 @@ public class ApprovalService {
 
         Staff oi = staffRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Office Incharge not found"));
+
+        if (oi.getSignaturePath() == null || oi.getSignaturePath().isBlank()) {
+            throw new RuntimeException(
+                    "You must upload your digital signature before approving. Go to My Profile."
+            );
+        }
+
         Staff owner = r.getStaff();
 
         // For self-leave, owner == oi. For others, verify assigned.
@@ -93,6 +116,7 @@ public class ApprovalService {
         }
 
         r.setOfficeInchargeSignature(signature);
+        r.setOfficeInchargeSignatureImage(oi.getSignaturePath());
         r.setOfficeInchargeNotes(notes);
         r.setOfficeInchargeApprovedAt(Instant.now());
         r.setStatus(RequestStatus.APPROVED);
@@ -118,6 +142,13 @@ public class ApprovalService {
 
         Staff oi = staffRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Office Incharge not found"));
+
+        if (oi.getSignaturePath() == null || oi.getSignaturePath().isBlank()) {
+            throw new RuntimeException(
+                    "You must upload your digital signature before rejecting. Go to My Profile."
+            );
+        }
+
         Staff owner = r.getStaff();
 
         if (!owner.getId().equals(oi.getId())) {
@@ -126,6 +157,7 @@ public class ApprovalService {
         }
 
         r.setOfficeInchargeRejectSignature(signature);
+        r.setOfficeInchargeSignatureImage(oi.getSignaturePath());
         r.setOfficeInchargeRejectedAt(Instant.now());
         r.setRejectionReason(reason);
         r.setStatus(RequestStatus.REJECTED);

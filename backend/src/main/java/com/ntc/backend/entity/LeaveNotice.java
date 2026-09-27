@@ -52,6 +52,16 @@ public class LeaveNotice {
     @Column(name = "office_incharge_signature", columnDefinition = "TEXT")
     private String officeInchargeSignature;
 
+    // ===== NEW: signature image filename snapshots (for PDF) =====
+    @Column(name = "staff_signature_image")
+    private String staffSignatureImage;
+
+    @Column(name = "section_head_signature_image")
+    private String sectionHeadSignatureImage;
+
+    @Column(name = "office_incharge_signature_image")
+    private String officeInchargeSignatureImage;
+
     @Column(name = "decision_date")
     private Instant decisionDate;
 
@@ -98,6 +108,16 @@ public class LeaveNotice {
 
     public String getOfficeInchargeSignature() { return officeInchargeSignature; }
     public void setOfficeInchargeSignature(String officeInchargeSignature) { this.officeInchargeSignature = officeInchargeSignature; }
+
+    // ===== NEW getters/setters =====
+    public String getStaffSignatureImage() { return staffSignatureImage; }
+    public void setStaffSignatureImage(String staffSignatureImage) { this.staffSignatureImage = staffSignatureImage; }
+
+    public String getSectionHeadSignatureImage() { return sectionHeadSignatureImage; }
+    public void setSectionHeadSignatureImage(String sectionHeadSignatureImage) { this.sectionHeadSignatureImage = sectionHeadSignatureImage; }
+
+    public String getOfficeInchargeSignatureImage() { return officeInchargeSignatureImage; }
+    public void setOfficeInchargeSignatureImage(String officeInchargeSignatureImage) { this.officeInchargeSignatureImage = officeInchargeSignatureImage; }
 
     public Instant getDecisionDate() { return decisionDate; }
     public void setDecisionDate(Instant decisionDate) { this.decisionDate = decisionDate; }

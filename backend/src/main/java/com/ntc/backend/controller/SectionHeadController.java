@@ -9,6 +9,7 @@ import com.ntc.backend.service.StaffService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,11 +26,13 @@ public class SectionHeadController {
     @Autowired private StaffRepository staffRepository;
 
     @GetMapping("/requests")
+    @Transactional(readOnly = true)
     public List<LeaveRequestResponseDTO> pending(Authentication auth) {
         return leaveRequestService.getPendingForSectionHead(auth.getName());
     }
 
     @GetMapping("/history")
+    @Transactional(readOnly = true)
     public List<LeaveRequestResponseDTO> history(Authentication auth) {
         return leaveRequestService.getHistoryForSectionHead(auth.getName());
     }
@@ -53,6 +56,7 @@ public class SectionHeadController {
     }
 
     @GetMapping("/my-staff")
+    @Transactional(readOnly = true)
     public List<StaffResponseDTO> myStaff(Authentication auth) {
         Staff sh = staffRepository.findByUsername(auth.getName())
                 .orElseThrow(() -> new RuntimeException("Not found"));

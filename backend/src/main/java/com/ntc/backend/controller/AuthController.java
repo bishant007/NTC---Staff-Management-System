@@ -29,6 +29,8 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse login(@RequestBody LoginRequest req) {
         try {
+            // CustomUserDetailsService accepts username OR staffId OR email.
+            // It always returns a principal whose getUsername() is the canonical username.
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
             UserDetails ud = (UserDetails) auth.getPrincipal();
@@ -38,7 +40,7 @@ public class AuthController {
             data.put("token", token);
             data.put("username", ud.getUsername());
 
-            // Check admin first
+            // Admin check first
             var adminOpt = adminRepository.findByUsername(ud.getUsername());
             if (adminOpt.isPresent()) {
                 Admin a = adminOpt.get();
@@ -49,6 +51,7 @@ public class AuthController {
                 return new ApiResponse(true, "Login successful", data);
             }
 
+            // Staff
             Staff s = staffRepository.findByUsername(ud.getUsername())
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -63,7 +66,7 @@ public class AuthController {
 
             return new ApiResponse(true, "Login successful", data);
         } catch (Exception e) {
-            return new ApiResponse(false, "Invalid username or password");
+            return new ApiResponse(false, "Invalid username, Staff ID, or password");
         }
     }
 }

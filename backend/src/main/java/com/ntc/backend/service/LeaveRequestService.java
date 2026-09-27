@@ -5,7 +5,6 @@ import com.ntc.backend.dto.LeaveRequestResponseDTO;
 import com.ntc.backend.entity.LeaveRequest;
 import com.ntc.backend.entity.Staff;
 import com.ntc.backend.enums.RequestStatus;
-import com.ntc.backend.enums.StaffRole;
 import com.ntc.backend.repository.LeaveRequestRepository;
 import com.ntc.backend.repository.StaffRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,11 +29,18 @@ public class LeaveRequestService {
         Staff staff = staffRepository.findByStaffId(dto.getStaffId())
                 .orElseThrow(() -> new RuntimeException("Staff not found"));
 
+        if (staff.getSignaturePath() == null || staff.getSignaturePath().isBlank()) {
+            throw new RuntimeException(
+                    "You must upload your digital signature before submitting a leave request. " +
+                            "Go to My Profile → Digital Signature."
+            );
+        }
+
         RequestStatus initialStatus;
         switch (staff.getRole()) {
             case SECTION_HEAD -> {
                 if (staff.getOfficeIncharge() == null)
-                    throw new RuntimeException("You have no Office Incharge assigned. Contact admin.");
+                    throw new RuntimeException("You have no Office In-Charge assigned. Contact admin.");
                 initialStatus = RequestStatus.PENDING_OFFICE_INCHARGE;
             }
             case OFFICE_INCHARGE -> initialStatus = RequestStatus.PENDING_SELF_APPROVAL;
@@ -45,7 +51,7 @@ public class LeaveRequestService {
             }
         }
 
-        Instant startInstant = dto.getStartDateTime().atZone(ZoneId.systemDefault()).toInstant();
+        Instant startInstant  = dto.getStartDateTime().atZone(ZoneId.systemDefault()).toInstant();
         Instant returnInstant = dto.getReturnDateTime().atZone(ZoneId.systemDefault()).toInstant();
 
         if (returnInstant.isBefore(startInstant))
@@ -72,9 +78,12 @@ public class LeaveRequestService {
         r.setReturnDateTime(returnInstant);
         r.setLeaveType(dto.getLeaveType());
         r.setStatus(initialStatus);
-        r.setStaffSignature(dto.getSignature());
-        r.setStaffSignedAt(Instant.now());
         r.setReferenceNumber(generateReferenceNumber());
+
+        // ===== Signature auto-applied from profile =====
+        r.setStaffSignature(staff.getFullName());
+        r.setStaffSignatureImage(staff.getSignaturePath());
+        r.setStaffSignedAt(Instant.now());
 
         LeaveRequest saved = leaveRequestRepository.save(r);
         return LeaveRequestResponseDTO.from(saved);

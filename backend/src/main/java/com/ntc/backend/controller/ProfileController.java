@@ -3,9 +3,8 @@ package com.ntc.backend.controller;
 import com.ntc.backend.dto.ApiResponse;
 import com.ntc.backend.entity.Staff;
 import com.ntc.backend.repository.StaffRepository;
+import com.ntc.backend.service.FileStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -14,10 +13,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 
 @RestController
@@ -25,9 +20,7 @@ import java.time.Instant;
 public class ProfileController {
 
     @Autowired private StaffRepository staffRepository;
-
-    @Value("${file.upload-dir:uploads/signatures}")
-    private String uploadDir;
+    @Autowired private FileStorageService fileStorageService;
 
     @GetMapping("/me")
     public ApiResponse me(Authentication auth) {
@@ -38,24 +31,16 @@ public class ProfileController {
 
     @PostMapping("/signature")
     public ApiResponse uploadSignature(@RequestParam("file") MultipartFile file, Authentication auth) {
-        try {
-            Staff s = staffRepository.findByUsername(auth.getName())
-                    .orElseThrow(() -> new RuntimeException("Staff not found"));
+        Staff me = staffRepository.findByUsername(auth.getName())
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
 
-            File dir = new File(uploadDir);
-            if (!dir.exists()) dir.mkdirs();
+        // ⚠️ Do NOT delete old signature — historical leave requests reference it
+        String filename = fileStorageService.storeSignature(file, me.getStaffId());
+        me.setSignaturePath(filename);
+        me.setSignatureUploadedAt(Instant.now());
+        staffRepository.save(me);
 
-            String filename = s.getUsername() + "-" + System.currentTimeMillis() + ".png";
-            Path path = Paths.get(uploadDir, filename);
-            Files.write(path, file.getBytes());
-
-            s.setSignaturePath(path.toString());
-            s.setSignatureUploadedAt(Instant.now());
-            staffRepository.save(s);
-            return new ApiResponse(true, "Signature uploaded");
-        } catch (Exception e) {
-            return new ApiResponse(false, "Upload failed: " + e.getMessage());
-        }
+        return new ApiResponse(true, "Signature uploaded successfully");
     }
 
     @DeleteMapping("/signature")
@@ -73,10 +58,22 @@ public class ProfileController {
         Staff s = staffRepository.findByStaffId(staffId)
                 .orElseThrow(() -> new RuntimeException("Not found"));
         if (s.getSignaturePath() == null) return ResponseEntity.notFound().build();
-        File f = new File(s.getSignaturePath());
-        if (!f.exists()) return ResponseEntity.notFound().build();
+        try {
+            Resource res = fileStorageService.loadSignature(s.getSignaturePath());
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE)
+                    .body(res);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/signature-file/{filename}")
+    public ResponseEntity<Resource> getSignatureFile(@PathVariable String filename) {
+        Resource res = fileStorageService.loadSignature(filename);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE)
-                .body(new FileSystemResource(f));
+                .contentType(MediaType.IMAGE_PNG)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                .body(res);
     }
 }

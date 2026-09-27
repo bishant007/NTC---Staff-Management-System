@@ -4,6 +4,25 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# ============================================================
+# SECRETS — NEVER COMMIT
+# ============================================================
+application-secrets.properties
+**/application-secrets.properties
+!application-secrets.properties.example
+
+# ============================================================
+# User uploads (signature files)
+# ============================================================
+uploads/
+**/uploads/
+
+# ============================================================
+# Logs
+# ============================================================
+*.log
+logs/
+
 ### STS ###
 .apt_generated
 .classpath

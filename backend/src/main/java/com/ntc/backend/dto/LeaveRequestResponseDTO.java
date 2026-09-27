@@ -10,6 +10,7 @@ public class LeaveRequestResponseDTO {
     public String staffId;
     public String staffName;
     public String staffUsername;
+    public String staffEmail;
     public String staffDepartment;
     public String staffBranch;
     public String staffRole;
@@ -27,16 +28,23 @@ public class LeaveRequestResponseDTO {
     public Instant sectionHeadApprovedAt;
     public String sectionHeadNotes;
     public String sectionHeadName;
+    public String sectionHeadStaffId;
 
     public String officeInchargeSignature;
     public Instant officeInchargeApprovedAt;
     public String officeInchargeNotes;
     public String officeInchargeName;
+    public String officeInchargeStaffId;
 
     public String rejectionReason;
     public Instant createdAt;
     public Instant updatedAt;
     public boolean hasNotice;
+
+    // Snapshot of signature images at time of action
+    public String staffSignatureImage;
+    public String sectionHeadSignatureImage;
+    public String officeInchargeSignatureImage;
 
     public static LeaveRequestResponseDTO from(LeaveRequest r) {
         LeaveRequestResponseDTO d = new LeaveRequestResponseDTO();
@@ -46,13 +54,18 @@ public class LeaveRequestResponseDTO {
             d.staffId = r.getStaff().getStaffId();
             d.staffName = r.getStaff().getFullName();
             d.staffUsername = r.getStaff().getUsername();
+            d.staffEmail = r.getStaff().getEmail();
             d.staffDepartment = r.getStaff().getDepartment();
             d.staffBranch = r.getStaff().getBranch();
-            d.staffRole = r.getStaff().getRole().name();
-            if (r.getStaff().getSectionHead() != null)
+            d.staffRole = r.getStaff().getRole() != null ? r.getStaff().getRole().name() : null;
+            if (r.getStaff().getSectionHead() != null) {
                 d.sectionHeadName = r.getStaff().getSectionHead().getFullName();
-            if (r.getStaff().getOfficeIncharge() != null)
+                d.sectionHeadStaffId = r.getStaff().getSectionHead().getStaffId();
+            }
+            if (r.getStaff().getOfficeIncharge() != null) {
                 d.officeInchargeName = r.getStaff().getOfficeIncharge().getFullName();
+                d.officeInchargeStaffId = r.getStaff().getOfficeIncharge().getStaffId();
+            }
         }
         d.reason = r.getReason();
         d.leaveStartTime = r.getLeaveStartTime();
@@ -70,6 +83,9 @@ public class LeaveRequestResponseDTO {
         d.rejectionReason = r.getRejectionReason();
         d.createdAt = r.getCreatedAt();
         d.updatedAt = r.getUpdatedAt();
+        d.staffSignatureImage = r.getStaffSignatureImage();
+        d.sectionHeadSignatureImage = r.getSectionHeadSignatureImage();
+        d.officeInchargeSignatureImage = r.getOfficeInchargeSignatureImage();
         return d;
     }
 }

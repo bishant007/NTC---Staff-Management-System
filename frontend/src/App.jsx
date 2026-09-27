@@ -29,6 +29,7 @@ import OfficeInchargePending from "./pages/office-incharge/PendingApprovals";
 import OfficeInchargeHistory from "./pages/office-incharge/ApprovalHistory";
 import MySectionHeads from "./pages/office-incharge/SectionHeads";
 
+// Roles that can access staff-level pages
 const ALL_STAFF_ROLES = ["staff", "section_head", "office_incharge"];
 
 function App() {
@@ -36,16 +37,26 @@ function App() {
     <AuthProvider>
       <BrowserRouter basename="/ntc-system">
         <Routes>
+
+          {/* Public */}
           <Route path="/" element={<Navigate to="/staff/login" />} />
           <Route path="/staff/login" element={<UnifiedLogin />} />
           <Route path="/admin/login" element={<UnifiedLogin />} />
           <Route path="/contact-admin" element={<ContactAdmin />} />
 
-          <Route path="/profile" element={
-            <ProtectedRoute allowedRoles={ALL_STAFF_ROLES}><ProfilePage /></ProtectedRoute>} />
-
+          {/* ✅ Reset password — allow ALL staff-level roles */}
           <Route path="/staff/reset-password" element={
-            <ProtectedRoute allowedRoles={["staff"]}><StaffResetPassword /></ProtectedRoute>} />
+            <ProtectedRoute allowedRoles={ALL_STAFF_ROLES}>
+              <StaffResetPassword />
+            </ProtectedRoute>} />
+
+          {/* Shared profile */}
+          <Route path="/profile" element={
+            <ProtectedRoute allowedRoles={ALL_STAFF_ROLES}>
+              <ProfilePage />
+            </ProtectedRoute>} />
+
+          {/* Staff */}
           <Route path="/staff/dashboard" element={
             <ProtectedRoute allowedRoles={["staff"]}><StaffDashboard /></ProtectedRoute>} />
           <Route path="/staff/new-request" element={
@@ -88,6 +99,7 @@ function App() {
             <ProtectedRoute allowedRoles={["office_incharge"]}><OfficeInchargeHistory /></ProtectedRoute>} />
           <Route path="/office-incharge/section-heads" element={
             <ProtectedRoute allowedRoles={["office_incharge"]}><MySectionHeads /></ProtectedRoute>} />
+
         </Routes>
       </BrowserRouter>
     </AuthProvider>

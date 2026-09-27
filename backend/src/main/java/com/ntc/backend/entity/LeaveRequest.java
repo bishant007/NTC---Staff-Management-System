@@ -82,6 +82,16 @@ public class LeaveRequest {
     @Column(name = "admin_remarks", columnDefinition = "TEXT")
     private String adminRemarks;
 
+    // Snapshot of signature images (path at time of action)
+    @Column(name = "staff_signature_image")
+    private String staffSignatureImage;
+
+    @Column(name = "section_head_signature_image")
+    private String sectionHeadSignatureImage;
+
+    @Column(name = "office_incharge_signature_image")
+    private String officeInchargeSignatureImage;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
@@ -157,6 +167,15 @@ public class LeaveRequest {
 
     public String getAdminRemarks() { return adminRemarks; }
     public void setAdminRemarks(String adminRemarks) { this.adminRemarks = adminRemarks; }
+
+    public String getStaffSignatureImage() { return staffSignatureImage; }
+    public void setStaffSignatureImage(String staffSignatureImage) { this.staffSignatureImage = staffSignatureImage; }
+
+    public String getSectionHeadSignatureImage() { return sectionHeadSignatureImage; }
+    public void setSectionHeadSignatureImage(String sectionHeadSignatureImage) { this.sectionHeadSignatureImage = sectionHeadSignatureImage; }
+
+    public String getOfficeInchargeSignatureImage() { return officeInchargeSignatureImage; }
+    public void setOfficeInchargeSignatureImage(String officeInchargeSignatureImage) { this.officeInchargeSignatureImage = officeInchargeSignatureImage; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

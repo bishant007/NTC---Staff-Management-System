@@ -22,25 +22,36 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Autowired private AdminRepository adminRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Optional<Staff> staffOpt = staffRepository.findByUsername(username);
+    public UserDetails loadUserByUsername(String credential) throws UsernameNotFoundException {
+
+        // ---------- Staff lookup: username → staffId → email ----------
+        Optional<Staff> staffOpt = staffRepository.findByUsername(credential);
+        if (staffOpt.isEmpty()) staffOpt = staffRepository.findByStaffId(credential);
+        if (staffOpt.isEmpty()) staffOpt = staffRepository.findByEmail(credential);
+
         if (staffOpt.isPresent()) {
-            Staff staff = staffOpt.get();
+            Staff s = staffOpt.get();
             return new User(
-                    staff.getUsername(),
-                    staff.getPassword(),
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + staff.getRole().name()))
+                    s.getUsername(),
+                    s.getPassword(),
+                    Collections.singletonList(
+                            new SimpleGrantedAuthority("ROLE_" + s.getRole().name()))
             );
         }
-        Optional<Admin> adminOpt = adminRepository.findByUsername(username);
+
+        // ---------- Admin lookup: username → email ----------
+        Optional<Admin> adminOpt = adminRepository.findByUsername(credential);
+        if (adminOpt.isEmpty()) adminOpt = adminRepository.findByEmail(credential);
+
         if (adminOpt.isPresent()) {
-            Admin admin = adminOpt.get();
+            Admin a = adminOpt.get();
             return new User(
-                    admin.getUsername(),
-                    admin.getPassword(),
+                    a.getUsername(),
+                    a.getPassword(),
                     Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN"))
             );
         }
-        throw new UsernameNotFoundException("User not found: " + username);
+
+        throw new UsernameNotFoundException("User not found: " + credential);
     }
 }

@@ -1,33 +1,45 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext } from 'react';
 
 const AuthContext = createContext(undefined);
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [role, setRole] = useState(null);
-
-  useEffect(() => {
+// Lazy initializers: read localStorage on FIRST render (not after)
+const readUser = () => {
+  try {
     const u = localStorage.getItem('user');
-    const t = localStorage.getItem('token');
-    const r = localStorage.getItem('role');
-    if (u && t && r) { setUser(JSON.parse(u)); setToken(t); setRole(r); }
-  }, []);
+    return u ? JSON.parse(u) : null;
+  } catch { return null; }
+};
+const readToken = () => localStorage.getItem('token');
+const readRole  = () => localStorage.getItem('role');
 
-  const login = (userData, token, role) => {
-    localStorage.removeItem('user'); localStorage.removeItem('token'); localStorage.removeItem('role');
-    setUser(userData); setToken(token); setRole(role);
+export const AuthProvider = ({ children }) => {
+  const [user,  setUser]  = useState(readUser);
+  const [token, setToken] = useState(readToken);
+  const [role,  setRole]  = useState(readRole);
+
+  const login = (userData, tokenValue, roleValue) => {
+    setUser(userData);
+    setToken(tokenValue);
+    setRole(roleValue);
     localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('token', token);
-    localStorage.setItem('role', role);
+    localStorage.setItem('token', tokenValue);
+    localStorage.setItem('role', roleValue);
   };
 
   const logout = () => {
-    setUser(null); setToken(null); setRole(null);
-    localStorage.removeItem('user'); localStorage.removeItem('token'); localStorage.removeItem('role');
+    setUser(null);
+    setToken(null);
+    setRole(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
   };
 
-  return <AuthContext.Provider value={{ user, token, role, login, logout }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, token, role, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {

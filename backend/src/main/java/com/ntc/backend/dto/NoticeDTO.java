@@ -14,9 +14,17 @@ public class NoticeDTO {
     public String officeInchargeSnapshot;
     public String leaveSummary;
     public String decisionRemarks;
+
+    // Typed-name signatures (fallback / human-readable)
     public String staffSignature;
     public String sectionHeadSignature;
     public String officeInchargeSignature;
+
+    // NEW: Image filename snapshots for the PDF
+    public String staffSignatureImage;
+    public String sectionHeadSignatureImage;
+    public String officeInchargeSignatureImage;
+
     public Instant decisionDate;
     public Instant createdAt;
 
@@ -35,6 +43,12 @@ public class NoticeDTO {
         d.staffSignature = n.getStaffSignature();
         d.sectionHeadSignature = n.getSectionHeadSignature();
         d.officeInchargeSignature = n.getOfficeInchargeSignature();
+
+        // NEW — will fail to compile until LeaveNotice has these getters
+        d.staffSignatureImage = n.getStaffSignatureImage();
+        d.sectionHeadSignatureImage = n.getSectionHeadSignatureImage();
+        d.officeInchargeSignatureImage = n.getOfficeInchargeSignatureImage();
+
         d.decisionDate = n.getDecisionDate();
         d.createdAt = n.getCreatedAt();
         return d;

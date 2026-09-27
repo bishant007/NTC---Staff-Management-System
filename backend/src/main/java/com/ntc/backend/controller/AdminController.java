@@ -30,6 +30,7 @@ public class AdminController {
     @Autowired private StaffRepository staffRepository;
     @Autowired private EmailService emailService;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private com.ntc.backend.repository.AdminRepository adminRepository;
 
     @PostMapping("/staff")
     public ApiResponse createStaff(@Valid @RequestBody StaffCreateDTO dto) {
@@ -94,5 +95,26 @@ public class AdminController {
     @GetMapping("/requests")
     public List<LeaveRequestResponseDTO> getRequests(@RequestParam(required = false) RequestStatus status) {
         return leaveRequestService.getAllRequests(status);
+    }
+
+    @PostMapping("/change-password")
+    public ApiResponse changePassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String oldPw = body.get("oldPassword");
+        String newPw = body.get("newPassword");
+
+        if (email == null || oldPw == null || newPw == null) {
+            return new ApiResponse(false, "Missing fields");
+        }
+
+        com.ntc.backend.entity.Admin admin = adminRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Admin not found"));
+
+        if (!passwordEncoder.matches(oldPw, admin.getPassword())) {
+            return new ApiResponse(false, "Current password is incorrect");
+        }
+        admin.setPassword(passwordEncoder.encode(newPw));
+        adminRepository.save(admin);
+        return new ApiResponse(true, "Password updated successfully");
     }
 }

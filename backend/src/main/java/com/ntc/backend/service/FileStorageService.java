@@ -55,14 +55,35 @@ public class FileStorageService {
         }
     }
 
-    public Resource loadSignature(String filename) {
+    /**
+     * Tolerant loader that handles both:
+     *   - New format: just a filename (e.g. "STF001_ab12cd34.png")
+     *   - Legacy format: a full/relative path (e.g. "uploads/signatures/ramesh-1699.png")
+     */
+    public Resource loadSignature(String filenameOrPath) {
         try {
-            Path file = root.resolve(filename).normalize();
+            Path file = Paths.get(filenameOrPath);
+
+            // If not absolute, try resolving against root
+            if (!file.isAbsolute()) {
+                file = root.resolve(filenameOrPath);
+            }
+            file = file.normalize();
+
+            // If the resolved path still doesn't exist, try just the filename
+            if (!Files.exists(file)) {
+                String justName = Paths.get(filenameOrPath).getFileName().toString();
+                Path fallback = root.resolve(justName).normalize();
+                if (Files.exists(fallback)) {
+                    file = fallback;
+                }
+            }
+
             Resource resource = new UrlResource(file.toUri());
             if (resource.exists() && resource.isReadable()) {
                 return resource;
             }
-            throw new RuntimeException("Signature not found");
+            throw new RuntimeException("Signature not found: " + filenameOrPath);
         } catch (Exception e) {
             throw new RuntimeException("Could not load signature", e);
         }

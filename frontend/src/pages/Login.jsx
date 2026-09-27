@@ -10,16 +10,18 @@ function Login() {
   const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({ username: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    const e = { username: "", password: "" };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const errs = { username: "", password: "" };
     let valid = true;
-    if (!username.trim()) { e.username = "Please enter your username"; valid = false; }
-    if (!password.trim()) { e.password = "Please enter your password"; valid = false; }
-    setErrors(e); setLoginError("");
+    if (!username.trim()) { errs.username = "Please enter your username or Staff ID"; valid = false; }
+    if (!password.trim()) { errs.password = "Please enter your password"; valid = false; }
+    setErrors(errs); setLoginError("");
     if (!valid) return;
 
     try {
@@ -75,29 +77,47 @@ function Login() {
         </div>
 
         <div style={{ width: "62%", display: "flex", justifyContent: "center", alignItems: "center", background: "#eef4ff" }}>
-          <div style={{
+          <form onSubmit={handleSubmit} style={{
             width: 420, padding: 36, background: "#fff", borderRadius: 18,
             border: "3px solid #cfe0fc", boxShadow: "6px 6px 0px #cfe0fc, 0 20px 40px rgba(13,110,253,.15)",
           }}>
             <h1 style={{ color: "#0b2e6f", fontSize: 32, fontWeight: 700, marginBottom: 6 }}>Welcome back</h1>
             <p style={{ color: "#5b7bab", marginBottom: 28, fontSize: 15 }}>Login to the NTC Leave Management Portal</p>
 
-            <label style={lbl}>Username</label>
+            <label style={lbl}>Username or Staff ID</label>
             <input value={username} onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. admin@bharat.com" style={inp(!!errors.username)} />
+              placeholder="e.g. bishant.staff@ntc.com or NTC-10001" style={inp(!!errors.username)} autoFocus />
             {errors.username && <p style={err}>{errors.username}</p>}
             {!errors.username && <div style={{ height: 16 }} />}
 
             <label style={lbl}>Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password" style={inp(!!errors.password)}
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                style={{ ...inp(!!errors.password), paddingRight: 44 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                style={{
+                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  fontSize: 16, color: '#64748b', padding: 6,
+                }}
+              >
+                {showPassword ? '🙈' : '👁'}
+              </button>
+            </div>
             {errors.password && <p style={err}>{errors.password}</p>}
             {!errors.password && <div style={{ height: 16 }} />}
 
             {loginError && <p style={err}>{loginError}</p>}
 
-            <button onClick={handleLogin} disabled={loading} style={{
+            <button type="submit" disabled={loading} style={{
               width: "100%", padding: 14,
               background: loading ? "#a9c6f5" : "linear-gradient(180deg, #3b8dfd, #0d6efd)",
               color: "#fff", border: "2px solid #0a4fc4", borderRadius: 10,
@@ -107,7 +127,7 @@ function Login() {
             }}>{loading ? "Logging in..." : "Login"}</button>
 
             <div style={{ marginTop: 22, textAlign: "center" }}>
-              <button onClick={() => navigate("/contact-admin")} style={{
+              <button type="button" onClick={() => navigate("/contact-admin")} style={{
                 background: "transparent", border: "none", color: "#0d6efd",
                 fontWeight: 700, fontSize: 14, cursor: "pointer", textDecoration: "underline",
               }}>Forgot password? Contact Administrator</button>
@@ -115,14 +135,14 @@ function Login() {
                 © 2026 Nepal Telecom · All Rights Reserved.
               </p>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>
   );
 }
 
-const lbl = { fontWeight: 600, color: "#0b2e6f", fontSize: 14 };
+const lbl = { display: 'block', fontWeight: 600, color: "#0b2e6f", fontSize: 14 };
 const inp = (err) => ({
   width: "100%", padding: "13px 14px", marginTop: 6, borderRadius: 10,
   border: err ? "2px solid #e5484d" : "2px solid #a9c6f5",
