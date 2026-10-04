@@ -12,6 +12,7 @@ public class StaffResponseDTO {
     public String department;
     public String branch;
     public String role;
+    public boolean active;
     public String sectionHeadStaffId;
     public String sectionHeadName;
     public String officeInchargeStaffId;
@@ -29,6 +30,7 @@ public class StaffResponseDTO {
         d.department = s.getDepartment();
         d.branch = s.getBranch();
         d.role = s.getRole() != null ? s.getRole().name() : null;
+        d.active = s.isActive();
         if (s.getSectionHead() != null) {
             d.sectionHeadStaffId = s.getSectionHead().getStaffId();
             d.sectionHeadName = s.getSectionHead().getFullName();

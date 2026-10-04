@@ -22,6 +22,12 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     List<LeaveRequest> findByStaffSectionHeadId(Long sectionHeadId);
     List<LeaveRequest> findByStaffOfficeInchargeId(Long officeInchargeId);
 
+    /** Total leave requests submitted by this staff (any status). */
+    long countByStaff(Staff staff);
+
+    /** Count of requests by this staff with specific statuses. */
+    long countByStaffAndStatusIn(Staff staff, List<RequestStatus> statuses);
+
     @Query("SELECT r FROM LeaveRequest r WHERE r.staff = :staff " +
             "AND r.status IN (com.ntc.backend.enums.RequestStatus.PENDING_SECTION_HEAD, " +
             "                 com.ntc.backend.enums.RequestStatus.PENDING_OFFICE_INCHARGE, " +

@@ -47,6 +47,14 @@ public class Staff {
     @Column(nullable = false)
     private StaffRole role = StaffRole.STAFF;
 
+    /** Soft delete flag. Deactivated users cannot log in. */
+    @Column(name = "active", nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
+    private boolean active = true;
+
+    /** Timestamp when the account was deactivated (soft-deleted). */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "section_head_id")
     @JsonIgnore
@@ -106,6 +114,12 @@ public class Staff {
 
     public StaffRole getRole() { return role; }
     public void setRole(StaffRole role) { this.role = role; }
+
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
+
+    public Instant getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
 
     public Staff getSectionHead() { return sectionHead; }
     public void setSectionHead(Staff sectionHead) { this.sectionHead = sectionHead; }

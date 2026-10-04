@@ -1,21 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import StaffDetailModal from '../../components/StaffDetailModal';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 import { useAuth } from '../../context/AuthContext';
-import { getMySectionHeads, createStaffByOfficeIncharge } from '../../services/authService';
+import { getMySectionHeads, createStaffByOfficeIncharge, oiStaffApi } from '../../services/authService';
 
 function SectionHeads() {
   const { user } = useAuth();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [deleting, setDeleting] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [createdCreds, setCreatedCreds] = useState(null);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
-    fullName: '', phone: '', email: '',
+    fullName: '', phone: '', email: '', staffId: '',
     department: user?.department || '',
     branch: user?.branch || '',
     role: 'SECTION_HEAD',
@@ -40,7 +42,7 @@ function SectionHeads() {
         setCreatedCreds(res.data.data);
         setShowForm(false);
         setForm({
-          fullName: '', phone: '', email: '',
+          fullName: '', phone: '', email: '', staffId: '',
           department: user?.department || '',
           branch: user?.branch || '',
           role: 'SECTION_HEAD',
@@ -51,9 +53,7 @@ function SectionHeads() {
       }
     } catch (err) {
       setMessage('❌ ' + (err.response?.data?.message || err.message));
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
 
   return (
@@ -65,7 +65,7 @@ function SectionHeads() {
           <div>
             <h1 style={{ color: '#0b2e6f', marginBottom: 4 }}>My Section Heads</h1>
             <p style={{ color: '#5b7bab', marginTop: 0 }}>
-              Section Heads reporting to you. You can also create new Section Heads or Staff.
+              Section Heads reporting to you. You can create, view, deactivate, or delete accounts.
             </p>
           </div>
           <button onClick={() => setShowForm(v => !v)} style={{
@@ -109,6 +109,10 @@ function SectionHeads() {
             <div><label style={lbl}>Email *</label>
               <input type="email" required value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })} style={inp} /></div>
+            <div><label style={lbl}>Staff ID (optional)</label>
+              <input value={form.staffId}
+                onChange={e => setForm({ ...form, staffId: e.target.value })}
+                placeholder="Blank = auto-generate" style={inp} /></div>
             <div><label style={lbl}>Role *</label>
               <select value={form.role}
                 onChange={e => setForm({ ...form, role: e.target.value })} style={inp}>
@@ -163,22 +167,32 @@ function SectionHeads() {
               </thead>
               <tbody>
                 {list.map(s => (
-                  <tr key={s.id}
-                    onClick={() => setSelected(s)}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    style={{ borderBottom: '1px solid #eef2f7', cursor: 'pointer' }}>
-                    <td style={{ ...td, fontWeight: 700, color: '#0d6efd', fontFamily: 'monospace', fontSize: 12.5 }}>
-                      {s.staffId}
+                  <tr key={s.id} style={{
+                    borderBottom: '1px solid #eef2f7', cursor: 'pointer',
+                    opacity: s.active === false ? 0.55 : 1,
+                  }}>
+                    <td style={{ ...td, fontWeight: 700, color: '#0d6efd', fontFamily: 'monospace', fontSize: 12.5 }}
+                      onClick={() => setSelected(s)}>{s.staffId}</td>
+                    <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}
+                      onClick={() => setSelected(s)}>{s.username || '—'}</td>
+                    <td style={{ ...td, fontWeight: 600 }} onClick={() => setSelected(s)}>
+                      {s.fullName}
+                      {s.active === false && (
+                        <span style={{
+                          marginLeft: 8, fontSize: 10, fontWeight: 800,
+                          background: '#dc2626', color: '#fff',
+                          padding: '2px 8px', borderRadius: 10,
+                        }}>INACTIVE</span>
+                      )}
                     </td>
-                    <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{s.username || '—'}</td>
-                    <td style={{ ...td, fontWeight: 600 }}>{s.fullName}</td>
-                    <td style={{ ...td, color: '#475569', fontSize: 13 }}>{s.email}</td>
-                    <td style={{ ...td, fontSize: 13 }}>
+                    <td style={{ ...td, color: '#475569', fontSize: 13 }}
+                      onClick={() => setSelected(s)}>{s.email}</td>
+                    <td style={{ ...td, fontSize: 13 }} onClick={() => setSelected(s)}>
                       {s.department}{s.branch ? ` · ${s.branch}` : ''}
                     </td>
                     <td style={{ ...td, textAlign: 'right' }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => setSelected(s)} style={viewBtn}>View</button>
+                      <button onClick={() => setSelected(s)} style={{ ...viewBtn, background: '#f1f5f9', color: '#0b2e6f', border: '1px solid #cbd5e1' }}>View</button>
+                      <button onClick={() => setDeleting(s)} style={{ ...viewBtn, background: '#dc3545', color: '#fff', marginLeft: 6 }}>Manage</button>
                     </td>
                   </tr>
                 ))}
@@ -188,7 +202,36 @@ function SectionHeads() {
         </div>
 
         {selected && (
-          <StaffDetailModal staff={selected} onClose={() => setSelected(null)} />
+          <StaffDetailModal
+            staff={selected}
+            canManage={true}
+            onDelete={(s) => { setSelected(null); setDeleting(s); }}
+            onDeactivate={async (s) => {
+              if (!window.confirm(`Deactivate ${s.fullName}?`)) return;
+              try {
+                const res = await oiStaffApi.deactivate(s.staffId);
+                if (res.data.success) { setSelected(null); load(); }
+                else alert(res.data.message);
+              } catch (err) { alert(err.response?.data?.message || err.message); }
+            }}
+            onActivate={async (s) => {
+              try {
+                const res = await oiStaffApi.activate(s.staffId);
+                if (res.data.success) { setSelected(null); load(); }
+                else alert(res.data.message);
+              } catch (err) { alert(err.response?.data?.message || err.message); }
+            }}
+            onClose={() => setSelected(null)}
+          />
+        )}
+
+        {deleting && (
+          <ConfirmDeleteModal
+            staff={deleting}
+            api={oiStaffApi}
+            onClose={() => setDeleting(null)}
+            onDone={() => load()}
+          />
         )}
 
         {createdCreds && (
@@ -199,6 +242,7 @@ function SectionHeads() {
   );
 }
 
+/* ==================== Credentials Modal ==================== */
 function CredModal({ creds, onClose }) {
   const copy = (text) => navigator.clipboard.writeText(text);
   const copyAll = () => {

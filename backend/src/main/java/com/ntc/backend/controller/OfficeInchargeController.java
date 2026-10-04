@@ -74,4 +74,46 @@ public class OfficeInchargeController {
                 .filter(s -> s.getRole() == com.ntc.backend.enums.StaffRole.STAFF)
                 .map(StaffResponseDTO::from).collect(Collectors.toList());
     }
+
+    /* ---------------- Delete / Deactivate / Activate ---------------- */
+
+    @GetMapping("/staff/{staffId}/delete-check")
+    public ApiResponse checkDelete(@PathVariable String staffId, Authentication auth) {
+        try {
+            Map<String, Object> info = staffService.checkDeleteEligibility(staffId, auth.getName());
+            return new ApiResponse(true, "OK", info);
+        } catch (RuntimeException e) {
+            return new ApiResponse(false, e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/staff/{staffId}")
+    public ApiResponse hardDelete(@PathVariable String staffId, Authentication auth) {
+        try {
+            staffService.deleteStaff(staffId, auth.getName());
+            return new ApiResponse(true, "User permanently deleted");
+        } catch (RuntimeException e) {
+            return new ApiResponse(false, e.getMessage());
+        }
+    }
+
+    @PutMapping("/staff/{staffId}/deactivate")
+    public ApiResponse deactivate(@PathVariable String staffId, Authentication auth) {
+        try {
+            staffService.deactivateStaff(staffId, auth.getName());
+            return new ApiResponse(true, "User deactivated");
+        } catch (RuntimeException e) {
+            return new ApiResponse(false, e.getMessage());
+        }
+    }
+
+    @PutMapping("/staff/{staffId}/activate")
+    public ApiResponse activate(@PathVariable String staffId, Authentication auth) {
+        try {
+            staffService.activateStaff(staffId, auth.getName());
+            return new ApiResponse(true, "User reactivated");
+        } catch (RuntimeException e) {
+            return new ApiResponse(false, e.getMessage());
+        }
+    }
 }

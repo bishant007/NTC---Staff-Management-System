@@ -92,6 +92,24 @@ public class EmailService {
         sendHtmlEmail(to, subject, wrap(subject, body));
     }
 
+    public void sendAccountDeactivated(String to, String fullName) {
+        String subject = "Your NTC account has been deactivated";
+        String body = ""
+                + para("Dear <strong style=\"color:" + NAVY + ";\">" + esc(fullName) + "</strong>,")
+                + para("Your <strong>NTC Staff Leave Management</strong> account has been "
+                + "<strong style=\"color:#dc2626;\">deactivated</strong> by an administrator.")
+                + divider()
+                + noticeBlock("🚫", "What this means",
+                "You can no longer log in to the portal. Any historical requests and approvals "
+                        + "you made remain on record.")
+                + noticeBlock("📞", "Need to reactivate?",
+                "If this was a mistake or your access needs to be restored, please contact "
+                        + "your NTC Administrator or the Office In-Charge.")
+                + para("Regards,<br/><strong>NTC Administration</strong><br/>"
+                + "<span style=\"color:" + MUTED + ";font-size:13px;\">Nepal Telecom</span>");
+        sendHtmlEmail(to, subject, wrap(subject, body));
+    }
+
     public void sendHtmlEmail(String to, String subject, String htmlBody) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -105,7 +123,7 @@ public class EmailService {
             h.setSubject(subject);
             h.setText(htmlBody, true);
             mailSender.send(message);
-        } catch (MessagingException e) {
+        } catch (MessagingException | java.io.UnsupportedEncodingException e) {
             throw new RuntimeException("Failed to send email", e);
         }
     }

@@ -1,7 +1,6 @@
 package com.ntc.backend.controller;
 
 import com.ntc.backend.dto.*;
-import com.ntc.backend.entity.LeaveRequest;
 import com.ntc.backend.entity.Staff;
 import com.ntc.backend.enums.RequestStatus;
 import com.ntc.backend.enums.StaffRole;
@@ -12,6 +11,7 @@ import com.ntc.backend.service.LeaveRequestService;
 import com.ntc.backend.service.StaffService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -44,8 +44,12 @@ public class AdminController {
 
     @GetMapping("/staff")
     @Transactional(readOnly = true)
-    public List<StaffResponseDTO> getAllStaff() {
-        return staffRepository.findAll().stream().map(StaffResponseDTO::from).collect(Collectors.toList());
+    public List<StaffResponseDTO> getAllStaff(
+            @RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive) {
+        return staffRepository.findAll().stream()
+                .filter(s -> includeInactive || s.isActive())
+                .map(StaffResponseDTO::from)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/staff/{staffId}")
@@ -91,6 +95,50 @@ public class AdminController {
         staffRepository.save(s);
         return new ApiResponse(true, "Staff updated", StaffResponseDTO.from(s));
     }
+
+    /* ---------------- Delete / Deactivate / Activate ---------------- */
+
+    @GetMapping("/staff/{staffId}/delete-check")
+    public ApiResponse checkDelete(@PathVariable String staffId, Authentication auth) {
+        try {
+            Map<String, Object> info = staffService.checkDeleteEligibility(staffId, auth.getName());
+            return new ApiResponse(true, "OK", info);
+        } catch (RuntimeException e) {
+            return new ApiResponse(false, e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/staff/{staffId}")
+    public ApiResponse hardDelete(@PathVariable String staffId, Authentication auth) {
+        try {
+            staffService.deleteStaff(staffId, auth.getName());
+            return new ApiResponse(true, "User permanently deleted");
+        } catch (RuntimeException e) {
+            return new ApiResponse(false, e.getMessage());
+        }
+    }
+
+    @PutMapping("/staff/{staffId}/deactivate")
+    public ApiResponse deactivate(@PathVariable String staffId, Authentication auth) {
+        try {
+            staffService.deactivateStaff(staffId, auth.getName());
+            return new ApiResponse(true, "User deactivated");
+        } catch (RuntimeException e) {
+            return new ApiResponse(false, e.getMessage());
+        }
+    }
+
+    @PutMapping("/staff/{staffId}/activate")
+    public ApiResponse activate(@PathVariable String staffId, Authentication auth) {
+        try {
+            staffService.activateStaff(staffId, auth.getName());
+            return new ApiResponse(true, "User reactivated");
+        } catch (RuntimeException e) {
+            return new ApiResponse(false, e.getMessage());
+        }
+    }
+
+    /* ---------------- Other endpoints ---------------- */
 
     @GetMapping("/requests")
     public List<LeaveRequestResponseDTO> getRequests(@RequestParam(required = false) RequestStatus status) {

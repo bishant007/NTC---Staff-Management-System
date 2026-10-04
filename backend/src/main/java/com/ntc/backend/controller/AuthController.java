@@ -9,6 +9,7 @@ import com.ntc.backend.repository.StaffRepository;
 import com.ntc.backend.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,8 +30,6 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse login(@RequestBody LoginRequest req) {
         try {
-            // CustomUserDetailsService accepts username OR staffId OR email.
-            // It always returns a principal whose getUsername() is the canonical username.
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
             UserDetails ud = (UserDetails) auth.getPrincipal();
@@ -40,7 +39,6 @@ public class AuthController {
             data.put("token", token);
             data.put("username", ud.getUsername());
 
-            // Admin check first
             var adminOpt = adminRepository.findByUsername(ud.getUsername());
             if (adminOpt.isPresent()) {
                 Admin a = adminOpt.get();
@@ -51,7 +49,6 @@ public class AuthController {
                 return new ApiResponse(true, "Login successful", data);
             }
 
-            // Staff
             Staff s = staffRepository.findByUsername(ud.getUsername())
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -65,7 +62,14 @@ public class AuthController {
             data.put("hasSignature", s.getSignaturePath() != null);
 
             return new ApiResponse(true, "Login successful", data);
+        } catch (DisabledException e) {
+            return new ApiResponse(false,
+                    "Your account has been deactivated. Please contact your NTC Administrator.");
         } catch (Exception e) {
+            if (e.getCause() instanceof DisabledException) {
+                return new ApiResponse(false,
+                        "Your account has been deactivated. Please contact your NTC Administrator.");
+            }
             return new ApiResponse(false, "Invalid username, Staff ID, or password");
         }
     }

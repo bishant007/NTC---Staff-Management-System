@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { getSignatureBlob } from '../services/authService';
 
-export default function StaffDetailModal({ staff, onClose }) {
+export default function StaffDetailModal({
+  staff, onClose,
+  onDelete, onDeactivate, onActivate, canManage = false
+}) {
   const [sigUrl, setSigUrl] = useState(null);
   const [sigLoading, setSigLoading] = useState(true);
 
@@ -18,6 +21,7 @@ export default function StaffDetailModal({ staff, onClose }) {
 
   const initials = staff?.fullName?.split(' ').map(s => s[0]).slice(0, 2).join('') || 'U';
   const roleLabel = staff?.role?.replace('_', ' ') || '—';
+  const inactive = staff?.active === false;
 
   return (
     <div style={overlay} onClick={onClose}>
@@ -26,7 +30,16 @@ export default function StaffDetailModal({ staff, onClose }) {
         <div style={hero}>
           <div style={avatar}>{initials}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 style={{ margin: 0, color: '#fff', fontSize: 22 }}>{staff.fullName}</h2>
+            <h2 style={{ margin: 0, color: '#fff', fontSize: 22 }}>
+              {staff.fullName}
+              {inactive && (
+                <span style={{
+                  marginLeft: 10, fontSize: 11, fontWeight: 800,
+                  background: '#dc2626', color: '#fff', padding: '3px 10px',
+                  borderRadius: 20, letterSpacing: 1,
+                }}>INACTIVE</span>
+              )}
+            </h2>
             <div style={{ color: 'rgba(255,255,255,.85)', fontSize: 13, marginTop: 4 }}>
               {staff.staffId} · {staff.email}
             </div>
@@ -39,7 +52,7 @@ export default function StaffDetailModal({ staff, onClose }) {
           <button onClick={onClose} style={closeBtn}>×</button>
         </div>
 
-        {/* CONTACT + ORG */}
+        {/* BODY */}
         <div style={{ padding: '20px 24px' }}>
           <SectionTitle>Contact Information</SectionTitle>
           <div style={grid2}>
@@ -63,12 +76,9 @@ export default function StaffDetailModal({ staff, onClose }) {
             {sigLoading ? (
               <div style={{ color: '#94a3b8', fontSize: 13 }}>Loading signature…</div>
             ) : sigUrl ? (
-              <img src={sigUrl} alt="signature"
-                style={{ maxHeight: 90, maxWidth: '100%' }} />
+              <img src={sigUrl} alt="signature" style={{ maxHeight: 90, maxWidth: '100%' }} />
             ) : (
-              <div style={{ color: '#94a3b8', fontSize: 13, padding: '14px 0' }}>
-                No signature on file
-              </div>
+              <div style={{ color: '#94a3b8', fontSize: 13, padding: '14px 0' }}>No signature on file</div>
             )}
           </div>
           {staff.hasSignature ? (
@@ -78,6 +88,30 @@ export default function StaffDetailModal({ staff, onClose }) {
           ) : (
             <div style={{ marginTop: 10, fontSize: 12, color: '#92400e', fontWeight: 600 }}>
               ⚠️ User cannot submit/approve until signature is uploaded
+            </div>
+          )}
+
+          {/* ACTION BUTTONS */}
+          {canManage && (
+            <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #e5edf8' }}>
+              <SectionTitle>Account Actions</SectionTitle>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {staff.active ? (
+                  <>
+                    <button onClick={() => onDeactivate && onDeactivate(staff)}
+                      style={btn('#f59e0b')}>🚫 Deactivate</button>
+                    <button onClick={() => onDelete && onDelete(staff)}
+                      style={btn('#dc3545')}>🗑 Delete Permanently</button>
+                  </>
+                ) : (
+                  <button onClick={() => onActivate && onActivate(staff)}
+                    style={btn('#16a34a')}>✅ Reactivate</button>
+                )}
+              </div>
+              <p style={{ fontSize: 12, color: '#64748b', marginTop: 10, marginBottom: 0 }}>
+                <strong>Deactivate</strong> = preserves history, blocks login.
+                <strong> Delete</strong> = permanent, only if no history.
+              </p>
             </div>
           )}
         </div>
@@ -123,10 +157,17 @@ function Badge({ label, color }) {
   return (
     <span style={{
       fontSize: 11, fontWeight: 700, padding: '4px 10px',
-      borderRadius: 20, color: '#fff', background: color,
-      letterSpacing: 0.3,
+      borderRadius: 20, color: '#fff', background: color, letterSpacing: 0.3,
     }}>{label}</span>
   );
+}
+
+function btn(bg) {
+  return {
+    padding: '10px 18px', background: bg, color: '#fff',
+    border: 'none', borderRadius: 8, cursor: 'pointer',
+    fontWeight: 700, fontSize: 13,
+  };
 }
 
 const overlay = {

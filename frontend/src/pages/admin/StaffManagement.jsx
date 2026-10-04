@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { createStaff, getAllStaff, updateStaff } from '../../services/authService';
+import { createStaff, getAllStaff, updateStaff, adminStaffApi } from '../../services/authService';
 import AdminSidebar from '../../components/AdminSidebar';
+import StaffDetailModal from '../../components/StaffDetailModal';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 
 function StaffManagement() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('list');
   const [allStaff, setAllStaff] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
   const [sectionHeads, setSectionHeads] = useState([]);
   const [officeIncharges, setOfficeIncharges] = useState([]);
   const [editing, setEditing] = useState(null);
+  const [viewing, setViewing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
   const [createdCreds, setCreatedCreds] = useState(null);
   const [formData, setFormData] = useState({
-    fullName: '', phone: '', email: '',
+    fullName: '', phone: '', email: '', staffId: '',
     department: '', branch: '',
     role: 'STAFF', sectionHeadId: '', officeInchargeId: '',
   });
@@ -22,17 +27,18 @@ function StaffManagement() {
   const [success, setSuccess] = useState(false);
 
   const loadStaff = async () => {
+    setFetchLoading(true);
     try {
-      const res = await getAllStaff();
+      const res = await getAllStaff(showInactive);
       const list = res.data || [];
       setAllStaff(list);
-      setSectionHeads(list.filter(s => s.role === 'SECTION_HEAD'));
-      setOfficeIncharges(list.filter(s => s.role === 'OFFICE_INCHARGE'));
+      setSectionHeads(list.filter(s => s.role === 'SECTION_HEAD' && s.active));
+      setOfficeIncharges(list.filter(s => s.role === 'OFFICE_INCHARGE' && s.active));
     } catch (err) { console.error(err); }
     finally { setFetchLoading(false); }
   };
 
-  useEffect(() => { loadStaff(); }, []);
+  useEffect(() => { loadStaff(); /* eslint-disable-next-line */ }, [showInactive]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -47,7 +53,7 @@ function StaffManagement() {
   };
 
   const resetForm = () => setFormData({
-    fullName: '', phone: '', email: '',
+    fullName: '', phone: '', email: '', staffId: '',
     department: '', branch: '',
     role: 'STAFF', sectionHeadId: '', officeInchargeId: '',
   });
@@ -100,13 +106,19 @@ function StaffManagement() {
           Create accounts, assign roles, and manage reporting heads.
         </p>
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 24, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 24, marginBottom: 20, alignItems: 'center' }}>
           <TabBtn active={activeTab === 'list'} onClick={() => setActiveTab('list')}>
             Staff List ({allStaff.length})
           </TabBtn>
           <TabBtn active={activeTab === 'create'} onClick={() => setActiveTab('create')}>
             + Create Account
           </TabBtn>
+
+          <label style={{ marginLeft: 'auto', fontSize: 13, color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
+            <input type="checkbox" checked={showInactive}
+              onChange={e => setShowInactive(e.target.checked)} style={{ marginRight: 6 }} />
+            Show inactive
+          </label>
         </div>
 
         {message && (
@@ -130,47 +142,48 @@ function StaffManagement() {
                       <th style={th}>Email</th>
                       <th style={th}>Role</th>
                       <th style={th}>Dept / Branch</th>
-                      <th style={th}>Section Head</th>
-                      <th style={th}>Office Incharge</th>
                       <th style={th}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {allStaff.map(s => (
-                      <tr key={s.id} style={{ borderBottom: '1px solid #eee' }}>
+                      <tr key={s.id} style={{
+                        borderBottom: '1px solid #eee',
+                        opacity: s.active ? 1 : 0.55,
+                      }}>
                         <td style={{ ...td, fontWeight: 700, color: '#0d6efd', fontSize: 12 }}>{s.staffId}</td>
                         <td style={{ ...td, fontWeight: 600, fontFamily: 'monospace', fontSize: 12 }}>{s.username}</td>
-                        <td style={td}>{s.fullName}</td>
+                        <td style={td}>
+                          {s.fullName}
+                          {!s.active && (
+                            <span style={{
+                              marginLeft: 8, fontSize: 10, fontWeight: 800,
+                              background: '#dc2626', color: '#fff',
+                              padding: '2px 8px', borderRadius: 10, letterSpacing: 0.5,
+                            }}>INACTIVE</span>
+                          )}
+                        </td>
                         <td style={{ ...td, fontSize: 13 }}>{s.email}</td>
                         <td style={td}><RoleBadge role={s.role} /></td>
                         <td style={{ ...td, fontSize: 13 }}>{s.department} · {s.branch}</td>
-                        <td style={{ ...td, fontSize: 12, color: '#64748b' }}>
-                          {s.sectionHeadName || '—'}
-                        </td>
-                        <td style={{ ...td, fontSize: 12, color: '#64748b' }}>
-                          {s.officeInchargeName || '—'}
-                        </td>
                         <td style={td}>
-                          <button
-                            onClick={() => setEditing({
-                              staffId: s.staffId,
-                              fullName: s.fullName,
-                              username: s.username,
-                              phone: s.phone,
-                              email: s.email,
-                              department: s.department,
-                              branch: s.branch,
-                              role: s.role,
-                              sectionHeadId: s.sectionHeadStaffId || '',
-                              officeInchargeId: s.officeInchargeStaffId || '',
-                              newPassword: '',
-                            })}
-                            style={{
-                              padding: '6px 14px', background: '#0d6efd', color: '#fff',
-                              border: 'none', borderRadius: 6, cursor: 'pointer',
-                              fontWeight: 600, fontSize: 12,
-                            }}
-                          >Edit</button>
+                          <button onClick={() => setViewing(s)}
+                            style={actionBtn('#f1f5f9', '#0b2e6f', 0)}>View</button>
+                          <button onClick={() => setEditing({
+                            staffId: s.staffId,
+                            fullName: s.fullName,
+                            username: s.username,
+                            phone: s.phone,
+                            email: s.email,
+                            department: s.department,
+                            branch: s.branch,
+                            role: s.role,
+                            sectionHeadId: s.sectionHeadStaffId || '',
+                            officeInchargeId: s.officeInchargeStaffId || '',
+                            newPassword: '',
+                          })} style={actionBtn('#0d6efd', '#fff', 6)}>Edit</button>
+                          <button onClick={() => setDeleting(s)}
+                            style={actionBtn('#dc3545', '#fff', 6)}>Manage</button>
                         </td>
                       </tr>
                     ))}
@@ -195,6 +208,10 @@ function StaffManagement() {
                 <Field label="Email *">
                   <input type="email" name="email" value={formData.email} onChange={handleChange} required style={inp} />
                 </Field>
+                <Field label="Staff ID (optional — blank = auto-generate)">
+                  <input name="staffId" value={formData.staffId} onChange={handleChange}
+                    placeholder="e.g., NTC-8001 or any company ID" style={inp} />
+                </Field>
                 <Field label="Role *">
                   <select name="role" value={formData.role} onChange={handleChange} style={inp}>
                     <option value="STAFF">Staff</option>
@@ -215,8 +232,8 @@ function StaffManagement() {
                 background: '#f0f9ff', border: '1px dashed #0d6efd',
                 fontSize: 13, color: '#1e40af',
               }}>
-                ℹ️ Username is auto-generated as <code>firstname.role@ntc.com</code>. If it's
-                already taken, a number is appended (e.g. <code>bishant.staff2@ntc.com</code>).
+                ℹ️ If Staff ID is blank, it will be auto-generated as <code>NTC-XXXXX</code>.
+                Username is auto-generated as <code>firstname.role@ntc.com</code>.
               </div>
 
               {formData.role === 'STAFF' && (
@@ -265,7 +282,7 @@ function StaffManagement() {
 
               {formData.role === 'OFFICE_INCHARGE' && (
                 <p style={{ marginTop: 16, padding: 12, background: '#e0e7ff', borderRadius: 8, fontSize: 13, color: '#3730a3' }}>
-                  ℹ️ Office Incharge sits at the top of the reporting chain. No reporting assignments needed.
+                  ℹ️ Office Incharge sits at the top of the reporting chain.
                 </p>
               )}
 
@@ -288,6 +305,39 @@ function StaffManagement() {
             officeIncharges={officeIncharges}
             onSave={saveEdit}
             loading={loading}
+          />
+        )}
+
+        {viewing && (
+          <StaffDetailModal
+            staff={viewing}
+            canManage={true}
+            onDelete={(s) => { setViewing(null); setDeleting(s); }}
+            onDeactivate={async (s) => {
+              if (!window.confirm(`Deactivate ${s.fullName}?`)) return;
+              try {
+                const res = await adminStaffApi.deactivate(s.staffId);
+                if (res.data.success) { setViewing(null); loadStaff(); }
+                else alert(res.data.message);
+              } catch (err) { alert(err.response?.data?.message || err.message); }
+            }}
+            onActivate={async (s) => {
+              try {
+                const res = await adminStaffApi.activate(s.staffId);
+                if (res.data.success) { setViewing(null); loadStaff(); }
+                else alert(res.data.message);
+              } catch (err) { alert(err.response?.data?.message || err.message); }
+            }}
+            onClose={() => setViewing(null)}
+          />
+        )}
+
+        {deleting && (
+          <ConfirmDeleteModal
+            staff={deleting}
+            api={adminStaffApi}
+            onClose={() => setDeleting(null)}
+            onDone={() => loadStaff()}
           />
         )}
 
@@ -548,6 +598,15 @@ function RoleBadge({ role }) {
       background: colors[role] || '#eee', color: fg[role] || '#333',
     }}>{role?.replace('_', ' ')}</span>
   );
+}
+
+function actionBtn(bg, fg, ml) {
+  return {
+    padding: '6px 14px', background: bg, color: fg,
+    border: bg === '#f1f5f9' ? '1px solid #cbd5e1' : 'none',
+    borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 12,
+    marginLeft: ml,
+  };
 }
 
 const th = { padding: '10px', textAlign: 'left', fontSize: 13, color: '#334155' };

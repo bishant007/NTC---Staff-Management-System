@@ -6,7 +6,8 @@ export const unifiedLogin = (username, password) =>
 
 // ---- Admin ----
 export const createStaff = (data) => api.post('/admin/staff', data);
-export const getAllStaff = () => api.get('/admin/staff');
+export const getAllStaff = (includeInactive = false) =>
+  api.get('/admin/staff', { params: { includeInactive } });
 export const getStaffByStaffId = (id) => api.get(`/admin/staff/${id}`);
 export const updateStaff = (id, data) => api.put(`/admin/staff/${id}`, data);
 export const getLeaveRequests = (status) =>
@@ -94,3 +95,15 @@ export const rejectPasswordReset = (id, reason) =>
 // ---- Admin settings ----
 export const changeAdminPassword = (email, oldPassword, newPassword) =>
   api.post('/admin/change-password', { email, oldPassword, newPassword });
+
+// ---- Delete / Deactivate / Activate ----
+const scopedStaff = (base) => ({
+  checkDelete: (staffId) => api.get(`/${base}/staff/${staffId}/delete-check`),
+  hardDelete: (staffId) => api.delete(`/${base}/staff/${staffId}`),
+  deactivate: (staffId) => api.put(`/${base}/staff/${staffId}/deactivate`),
+  activate: (staffId) => api.put(`/${base}/staff/${staffId}/activate`),
+});
+
+export const adminStaffApi = scopedStaff('admin');
+export const oiStaffApi = scopedStaff('office-incharge');
+export const shStaffApi = scopedStaff('section-head');

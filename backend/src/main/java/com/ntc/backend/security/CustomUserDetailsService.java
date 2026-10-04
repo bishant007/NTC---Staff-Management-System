@@ -24,7 +24,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String credential) throws UsernameNotFoundException {
 
-        // ---------- Staff lookup: username → staffId → email ----------
+        // ---------- Staff lookup ----------
         Optional<Staff> staffOpt = staffRepository.findByUsername(credential);
         if (staffOpt.isEmpty()) staffOpt = staffRepository.findByStaffId(credential);
         if (staffOpt.isEmpty()) staffOpt = staffRepository.findByEmail(credential);
@@ -34,12 +34,16 @@ public class CustomUserDetailsService implements UserDetailsService {
             return new User(
                     s.getUsername(),
                     s.getPassword(),
+                    s.isActive(),   // ⭐ enabled — Spring throws DisabledException if false
+                    true,           // accountNonExpired
+                    true,           // credentialsNonExpired
+                    true,           // accountNonLocked
                     Collections.singletonList(
                             new SimpleGrantedAuthority("ROLE_" + s.getRole().name()))
             );
         }
 
-        // ---------- Admin lookup: username → email ----------
+        // ---------- Admin lookup ----------
         Optional<Admin> adminOpt = adminRepository.findByUsername(credential);
         if (adminOpt.isEmpty()) adminOpt = adminRepository.findByEmail(credential);
 

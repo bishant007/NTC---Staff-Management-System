@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import StaffDetailModal from '../../components/StaffDetailModal';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 import { useAuth } from '../../context/AuthContext';
-import { createStaffBySectionHead, getMyStaff } from '../../services/authService';
+import { createStaffBySectionHead, getMyStaff, shStaffApi } from '../../services/authService';
 
 function MyStaff() {
   const { user } = useAuth();
@@ -11,8 +12,9 @@ function MyStaff() {
   const [showForm, setShowForm] = useState(false);
   const [createdCreds, setCreatedCreds] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [deleting, setDeleting] = useState(null);
   const [form, setForm] = useState({
-    fullName: '', phone: '', email: '',
+    fullName: '', phone: '', email: '', staffId: '',
     department: user?.department || '', branch: user?.branch || '', role: 'STAFF'
   });
   const [message, setMessage] = useState('');
@@ -22,34 +24,28 @@ function MyStaff() {
     try {
       const res = await getMyStaff();
       setStaff(res.data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, []);
 
   const submit = async (e) => {
     e.preventDefault();
-    setSubmitting(true);
-    setMessage('');
+    setSubmitting(true); setMessage('');
     try {
       const res = await createStaffBySectionHead(form);
       if (res.data.success) {
         setCreatedCreds(res.data.data);
         setShowForm(false);
-        setForm({ ...form, fullName: '', phone: '', email: '' });
+        setForm({ ...form, fullName: '', phone: '', email: '', staffId: '' });
         load();
       } else {
         setMessage('❌ ' + res.data.message);
       }
     } catch (err) {
       setMessage('❌ ' + (err.response?.data?.message || err.message));
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
 
   return (
@@ -93,6 +89,10 @@ function MyStaff() {
             <div><label style={lbl}>Email *</label>
               <input type="email" required value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })} style={inp} /></div>
+            <div><label style={lbl}>Staff ID (optional)</label>
+              <input value={form.staffId}
+                onChange={e => setForm({ ...form, staffId: e.target.value })}
+                placeholder="Blank = auto-generate" style={inp} /></div>
             <div><label style={lbl}>Department *</label>
               <input required value={form.department}
                 onChange={e => setForm({ ...form, department: e.target.value })} style={inp} /></div>
@@ -119,9 +119,7 @@ function MyStaff() {
             staff.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 50 }}>
                 <div style={{ fontSize: 44 }}>👥</div>
-                <div style={{ color: '#0b2e6f', fontWeight: 700, marginTop: 8 }}>
-                  No staff yet
-                </div>
+                <div style={{ color: '#0b2e6f', fontWeight: 700, marginTop: 8 }}>No staff yet</div>
                 <p style={{ color: '#94a3b8', fontSize: 13, marginTop: 4 }}>
                   Click "+ Create Staff" to add your first staff member.
                 </p>
@@ -140,22 +138,30 @@ function MyStaff() {
                 </thead>
                 <tbody>
                   {staff.map(s => (
-                    <tr key={s.id}
-                      onClick={() => setSelected(s)}
-                      onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      style={{ borderBottom: '1px solid #eef2f7', cursor: 'pointer' }}>
-                      <td style={{ ...td, fontWeight: 700, color: '#0d6efd', fontFamily: 'monospace', fontSize: 12.5 }}>
-                        {s.staffId}
+                    <tr key={s.id} style={{
+                      borderBottom: '1px solid #eef2f7', cursor: 'pointer',
+                      opacity: s.active === false ? 0.55 : 1,
+                    }}>
+                      <td style={{ ...td, fontWeight: 700, color: '#0d6efd', fontFamily: 'monospace', fontSize: 12.5 }}
+                        onClick={() => setSelected(s)}>{s.staffId}</td>
+                      <td style={{ ...td, fontWeight: 600 }} onClick={() => setSelected(s)}>
+                        {s.fullName}
+                        {s.active === false && (
+                          <span style={{
+                            marginLeft: 8, fontSize: 10, fontWeight: 800,
+                            background: '#dc2626', color: '#fff',
+                            padding: '2px 8px', borderRadius: 10,
+                          }}>INACTIVE</span>
+                        )}
                       </td>
-                      <td style={{ ...td, fontWeight: 600 }}>{s.fullName}</td>
-                      <td style={{ ...td, color: '#475569' }}>{s.email}</td>
-                      <td style={{ ...td, color: '#475569' }}>{s.phone || '—'}</td>
-                      <td style={{ ...td, fontSize: 13 }}>
+                      <td style={{ ...td, color: '#475569' }} onClick={() => setSelected(s)}>{s.email}</td>
+                      <td style={{ ...td, color: '#475569' }} onClick={() => setSelected(s)}>{s.phone || '—'}</td>
+                      <td style={{ ...td, fontSize: 13 }} onClick={() => setSelected(s)}>
                         {s.department}{s.branch ? ` · ${s.branch}` : ''}
                       </td>
                       <td style={{ ...td, textAlign: 'right' }} onClick={e => e.stopPropagation()}>
-                        <button onClick={() => setSelected(s)} style={viewBtn}>View</button>
+                        <button onClick={() => setSelected(s)} style={{ ...viewBtn, background: '#f1f5f9', color: '#0b2e6f', border: '1px solid #cbd5e1' }}>View</button>
+                        <button onClick={() => setDeleting(s)} style={{ ...viewBtn, background: '#dc3545', color: '#fff', marginLeft: 6 }}>Manage</button>
                       </td>
                     </tr>
                   ))}
@@ -170,23 +176,43 @@ function MyStaff() {
         )}
 
         {selected && (
-          <StaffDetailModal staff={selected} onClose={() => setSelected(null)} />
+          <StaffDetailModal
+            staff={selected}
+            canManage={true}
+            onDelete={(s) => { setSelected(null); setDeleting(s); }}
+            onDeactivate={async (s) => {
+              if (!window.confirm(`Deactivate ${s.fullName}?`)) return;
+              try {
+                const res = await shStaffApi.deactivate(s.staffId);
+                if (res.data.success) { setSelected(null); load(); }
+                else alert(res.data.message);
+              } catch (err) { alert(err.response?.data?.message || err.message); }
+            }}
+            onActivate={async (s) => {
+              try {
+                const res = await shStaffApi.activate(s.staffId);
+                if (res.data.success) { setSelected(null); load(); }
+                else alert(res.data.message);
+              } catch (err) { alert(err.response?.data?.message || err.message); }
+            }}
+            onClose={() => setSelected(null)}
+          />
+        )}
+
+        {deleting && (
+          <ConfirmDeleteModal
+            staff={deleting}
+            api={shStaffApi}
+            onClose={() => setDeleting(null)}
+            onDone={() => load()}
+          />
         )}
       </div>
     </div>
   );
 }
 
-const lbl = { display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 13, color: '#334155' };
-const inp = { width: '100%', padding: 10, borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' };
-const th = { padding: 12, textAlign: 'left', fontSize: 12, color: '#334155', fontWeight: 700, letterSpacing: 0.3 };
-const td = { padding: 12, fontSize: 14, color: '#0b2e6f' };
-const viewBtn = {
-  padding: '6px 14px', background: '#0d6efd', color: '#fff',
-  border: 'none', borderRadius: 6, cursor: 'pointer',
-  fontSize: 12, fontWeight: 600,
-};
-
+/* ==================== Credentials Modal ==================== */
 function CredModal({ creds, onClose }) {
   const copy = (text) => navigator.clipboard.writeText(text);
   return (
@@ -250,5 +276,15 @@ function CredRow({ label, value, onCopy, highlight }) {
     </div>
   );
 }
+
+const lbl = { display: 'block', fontWeight: 600, marginBottom: 6, fontSize: 13, color: '#334155' };
+const inp = { width: '100%', padding: 10, borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' };
+const th = { padding: 12, textAlign: 'left', fontSize: 12, color: '#334155', fontWeight: 700, letterSpacing: 0.3 };
+const td = { padding: 12, fontSize: 14, color: '#0b2e6f' };
+const viewBtn = {
+  padding: '6px 14px', background: '#0d6efd', color: '#fff',
+  border: 'none', borderRadius: 6, cursor: 'pointer',
+  fontSize: 12, fontWeight: 600,
+};
 
 export default MyStaff;

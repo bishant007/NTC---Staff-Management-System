@@ -22,6 +22,12 @@ public interface StaffRepository extends JpaRepository<Staff, Long> {
     List<Staff> findBySectionHeadId(Long sectionHeadId);
     List<Staff> findByOfficeInchargeId(Long officeInchargeId);
 
+    /** Count of subordinates for a given SH. */
+    long countBySectionHeadId(Long sectionHeadId);
+
+    /** Count of subordinates for a given OI. */
+    long countByOfficeInchargeId(Long officeInchargeId);
+
     @Query("SELECT MAX(CAST(SUBSTRING(s.staffId, 5) AS long)) FROM Staff s WHERE s.staffId LIKE 'NTC-%'")
     Long findMaxNumericStaffId();
 }
