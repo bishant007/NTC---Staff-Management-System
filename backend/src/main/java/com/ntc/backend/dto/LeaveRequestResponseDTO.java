@@ -20,6 +20,10 @@ public class LeaveRequestResponseDTO {
     public Instant returnDateTime;
     public String status;
     public String leaveType;
+    public String leaveTypeLabel;
+    public String customLeaveType;
+    public String category;
+    public Double durationDays;
 
     public String staffSignature;
     public Instant staffSignedAt;
@@ -41,10 +45,16 @@ public class LeaveRequestResponseDTO {
     public Instant updatedAt;
     public boolean hasNotice;
 
-    // Snapshot of signature images at time of action
     public String staffSignatureImage;
     public String sectionHeadSignatureImage;
     public String officeInchargeSignatureImage;
+
+    public Instant holdUntil;
+    public String holdReason;
+    public String heldByRole;
+    public String heldByName;
+    public Instant heldAt;
+    public String preHoldStatus;
 
     public static LeaveRequestResponseDTO from(LeaveRequest r) {
         LeaveRequestResponseDTO d = new LeaveRequestResponseDTO();
@@ -72,6 +82,10 @@ public class LeaveRequestResponseDTO {
         d.returnDateTime = r.getReturnDateTime();
         d.status = r.getStatus() != null ? r.getStatus().name() : null;
         d.leaveType = r.getLeaveType() != null ? r.getLeaveType().name() : null;
+        d.leaveTypeLabel = r.getLeaveType() != null ? r.getLeaveType().prettyLabel() : null;
+        d.customLeaveType = r.getCustomLeaveType();
+        d.category = r.getCategory() != null ? r.getCategory().name() : "PERSONAL";
+        d.durationDays = r.getDurationDays();
         d.staffSignature = r.getStaffSignature();
         d.staffSignedAt = r.getStaffSignedAt();
         d.sectionHeadSignature = r.getSectionHeadSignature();
@@ -86,6 +100,14 @@ public class LeaveRequestResponseDTO {
         d.staffSignatureImage = r.getStaffSignatureImage();
         d.sectionHeadSignatureImage = r.getSectionHeadSignatureImage();
         d.officeInchargeSignatureImage = r.getOfficeInchargeSignatureImage();
+
+        d.holdUntil = r.getHoldUntil();
+        d.holdReason = r.getHoldReason();
+        d.heldByRole = r.getHeldByRole();
+        d.heldByName = r.getHeldByName();
+        d.heldAt = r.getHeldAt();
+        d.preHoldStatus = r.getPreHoldStatus();
+
         return d;
     }
 }

@@ -1,6 +1,6 @@
-package com.ntc.backend.security;
+package com.ntc.backend.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import com.ntc.backend.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -9,8 +9,6 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -23,13 +21,6 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-
-    @Autowired private JwtAuthenticationFilter jwtFilter;
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) throws Exception {
@@ -51,38 +42,42 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           JwtAuthenticationFilter jwtFilter) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-                        // Preflight always allowed
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                        // Let Spring's error dispatcher through
                         .requestMatchers("/error").permitAll()
 
-                        // Public endpoints
+                        // Public
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/refresh").permitAll()
                         .requestMatchers("/api/staff/reset-password").permitAll()
                         .requestMatchers("/api/password-reset/**").permitAll()
 
+                        // Auth session endpoints
+                        .requestMatchers("/api/auth/logout").authenticated()
+                        .requestMatchers("/api/auth/sessions/**").authenticated()
+
                         // Admin
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/audit-logs/**").hasRole("ADMIN")
 
-                        // Section head — EXPLICIT paths
+                        // Section head
                         .requestMatchers("/api/section-head/requests").hasRole("SECTION_HEAD")
                         .requestMatchers("/api/section-head/history").hasRole("SECTION_HEAD")
                         .requestMatchers("/api/section-head/my-staff").hasRole("SECTION_HEAD")
                         .requestMatchers("/api/section-head/staff").hasRole("SECTION_HEAD")
 
-                        // Office incharge — wildcard is fine here
+                        // Office incharge
                         .requestMatchers("/api/office-incharge/**").hasRole("OFFICE_INCHARGE")
 
-                        // Everything else authenticated (shared)
+                        // Shared authenticated
                         .requestMatchers("/api/notices/**").authenticated()
                         .requestMatchers("/api/reports/**").authenticated()
                         .requestMatchers("/api/profile/**").authenticated()

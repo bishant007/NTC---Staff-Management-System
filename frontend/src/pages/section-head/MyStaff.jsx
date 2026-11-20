@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import StaffDetailModal from '../../components/StaffDetailModal';
-import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 import { useAuth } from '../../context/AuthContext';
-import { createStaffBySectionHead, getMyStaff, shStaffApi } from '../../services/authService';
+import { createStaffBySectionHead, getMyStaff } from '../../services/authService';
 
 function MyStaff() {
   const { user } = useAuth();
@@ -12,7 +11,6 @@ function MyStaff() {
   const [showForm, setShowForm] = useState(false);
   const [createdCreds, setCreatedCreds] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [deleting, setDeleting] = useState(null);
   const [form, setForm] = useState({
     fullName: '', phone: '', email: '', staffId: '',
     department: user?.department || '', branch: user?.branch || '', role: 'STAFF'
@@ -160,8 +158,7 @@ function MyStaff() {
                         {s.department}{s.branch ? ` · ${s.branch}` : ''}
                       </td>
                       <td style={{ ...td, textAlign: 'right' }} onClick={e => e.stopPropagation()}>
-                        <button onClick={() => setSelected(s)} style={{ ...viewBtn, background: '#f1f5f9', color: '#0b2e6f', border: '1px solid #cbd5e1' }}>View</button>
-                        <button onClick={() => setDeleting(s)} style={{ ...viewBtn, background: '#dc3545', color: '#fff', marginLeft: 6 }}>Manage</button>
+                        <button onClick={() => setSelected(s)} style={viewBtn}>View</button>
                       </td>
                     </tr>
                   ))}
@@ -171,41 +168,12 @@ function MyStaff() {
           }
         </div>
 
+        {selected && (
+          <StaffDetailModal staff={selected} onClose={() => setSelected(null)} />
+        )}
+
         {createdCreds && (
           <CredModal creds={createdCreds} onClose={() => setCreatedCreds(null)} />
-        )}
-
-        {selected && (
-          <StaffDetailModal
-            staff={selected}
-            canManage={true}
-            onDelete={(s) => { setSelected(null); setDeleting(s); }}
-            onDeactivate={async (s) => {
-              if (!window.confirm(`Deactivate ${s.fullName}?`)) return;
-              try {
-                const res = await shStaffApi.deactivate(s.staffId);
-                if (res.data.success) { setSelected(null); load(); }
-                else alert(res.data.message);
-              } catch (err) { alert(err.response?.data?.message || err.message); }
-            }}
-            onActivate={async (s) => {
-              try {
-                const res = await shStaffApi.activate(s.staffId);
-                if (res.data.success) { setSelected(null); load(); }
-                else alert(res.data.message);
-              } catch (err) { alert(err.response?.data?.message || err.message); }
-            }}
-            onClose={() => setSelected(null)}
-          />
-        )}
-
-        {deleting && (
-          <ConfirmDeleteModal
-            staff={deleting}
-            api={shStaffApi}
-            onClose={() => setDeleting(null)}
-            onDone={() => load()}
-          />
         )}
       </div>
     </div>

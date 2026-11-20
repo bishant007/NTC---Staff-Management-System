@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getSignatureByFilename } from '../services/authService';
+import { formatNepalDateTime, nowNepalString } from '../utils/date';
 
 export default function PrintableRequest({ request, onClose }) {
   const [shSig, setShSig] = useState(null);
@@ -17,11 +18,7 @@ export default function PrintableRequest({ request, onClose }) {
     })();
   }, [request]);
 
-  const fmt = (v) => v ? new Date(v).toLocaleString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  }) : '—';
-
+  const fmt = (v) => formatNepalDateTime(v);
   const handlePrint = () => window.print();
 
   return (
@@ -42,7 +39,6 @@ export default function PrintableRequest({ request, onClose }) {
       `}</style>
 
       <div style={{ width: '100%', maxWidth: 820 }}>
-        {/* Toolbar */}
         <div className="no-print" style={{
           display: 'flex', justifyContent: 'space-between', marginBottom: 12
         }}>
@@ -50,12 +46,10 @@ export default function PrintableRequest({ request, onClose }) {
           <button onClick={onClose} style={btnSecondary}>✕ Close</button>
         </div>
 
-        {/* Printable Document */}
         <div id="print-area" style={{
           background: '#fff', padding: '40px 50px', color: '#000',
           fontFamily: "'Segoe UI', Arial, sans-serif", boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
         }}>
-          {/* Letterhead */}
           <div style={{ borderBottom: '2px solid #0b2e6f', paddingBottom: 14, marginBottom: 24, textAlign: 'center' }}>
             <h1 style={{ margin: 0, fontSize: 24, color: '#0b2e6f', letterSpacing: 2 }}>
               NEPAL TELECOM
@@ -65,13 +59,11 @@ export default function PrintableRequest({ request, onClose }) {
             </p>
           </div>
 
-          {/* Meta */}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#555', marginBottom: 20 }}>
-            <div><strong>Reference No:</strong> LR-{String(request.id).padStart(6, '0')}</div>
-            <div><strong>Generated:</strong> {fmt(new Date().toISOString())}</div>
+            <div><strong>Reference No:</strong> {request.referenceNumber || `LR-${String(request.id).padStart(6, '0')}`}</div>
+            <div><strong>Generated:</strong> {nowNepalString()} (NPT)</div>
           </div>
 
-          {/* Status Banner */}
           <div style={{
             display: 'inline-block', padding: '6px 16px', marginBottom: 24,
             background: request.status === 'APPROVED' ? '#d1fae5'
@@ -86,7 +78,6 @@ export default function PrintableRequest({ request, onClose }) {
             {request.status.replace(/_/g, ' ')}
           </div>
 
-          {/* Section I — Applicant */}
           <Section title="I. APPLICANT DETAILS">
             <Row label="Full Name" value={request.staffName} />
             <Row label="Staff ID" value={request.staffId} />
@@ -95,7 +86,6 @@ export default function PrintableRequest({ request, onClose }) {
             <Row label="Branch" value={request.staffBranch} />
           </Section>
 
-          {/* Section II — Leave Details */}
           <Section title="II. LEAVE DETAILS">
             <Row label="Leave Type" value={request.leaveType?.replace(/_/g, ' ')} />
             <Row label="Start Date & Time" value={fmt(request.leaveStartTime)} />
@@ -103,7 +93,6 @@ export default function PrintableRequest({ request, onClose }) {
             <Row label="Reason" value={request.reason} multiline />
           </Section>
 
-          {/* Section III — Applicant Signature */}
           <Section title="III. APPLICANT DECLARATION">
             <p style={{ fontSize: 13, color: '#333', margin: '0 0 12px', lineHeight: 1.6 }}>
               I hereby declare that the information provided above is true and correct
@@ -112,13 +101,12 @@ export default function PrintableRequest({ request, onClose }) {
             <SignatureBlock
               name={request.staffName}
               staffId={request.staffId}
-              when={request.createdAt}
+              when={request.staffSignedAt || request.createdAt}
               sigUrl={staffSig}
               roleLabel="Applicant"
             />
           </Section>
 
-          {/* Section IV — Section Head Referral */}
           {request.sectionHeadApprovedAt && (
             <Section title="IV. SECTION HEAD REFERRAL">
               <p style={{ fontSize: 13, color: '#333', margin: '0 0 12px', lineHeight: 1.6 }}>
@@ -142,7 +130,6 @@ export default function PrintableRequest({ request, onClose }) {
             </Section>
           )}
 
-          {/* Section V — Office In-Charge */}
           {request.officeInchargeApprovedAt && (
             <Section title="V. OFFICE IN-CHARGE DECISION">
               <p style={{ fontSize: 13, color: '#333', margin: '0 0 12px', lineHeight: 1.6 }}>
@@ -164,7 +151,6 @@ export default function PrintableRequest({ request, onClose }) {
             </Section>
           )}
 
-          {/* Rejection */}
           {request.rejectionReason && (
             <Section title="REJECTION NOTICE">
               <p style={{ fontSize: 13, color: '#991b1b', margin: 0, lineHeight: 1.6 }}>
@@ -173,7 +159,6 @@ export default function PrintableRequest({ request, onClose }) {
             </Section>
           )}
 
-          {/* Footer */}
           <div style={{
             marginTop: 40, paddingTop: 12, borderTop: '1px solid #cbd5e1',
             fontSize: 10, color: '#94a3b8', textAlign: 'center'
@@ -212,11 +197,6 @@ function Row({ label, value, multiline }) {
 }
 
 function SignatureBlock({ name, staffId, when, sigUrl, roleLabel }) {
-  const fmt = (v) => v ? new Date(v).toLocaleString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  }) : '—';
-
   return (
     <div style={{ display: 'flex', gap: 24, marginTop: 8 }}>
       <div style={{ flex: 1, borderBottom: '1px solid #475569', minHeight: 60, display: 'flex', alignItems: 'flex-end', paddingBottom: 4 }}>
@@ -230,7 +210,7 @@ function SignatureBlock({ name, staffId, when, sigUrl, roleLabel }) {
         </div>
         <div style={{ color: '#334155', marginTop: 2 }}>{name}</div>
         <div style={{ color: '#64748b', fontSize: 11 }}>{staffId}</div>
-        <div style={{ color: '#64748b', fontSize: 11 }}>Signed: {fmt(when)}</div>
+        <div style={{ color: '#64748b', fontSize: 11 }}>Signed: {formatNepalDateTime(when)}</div>
       </div>
     </div>
   );

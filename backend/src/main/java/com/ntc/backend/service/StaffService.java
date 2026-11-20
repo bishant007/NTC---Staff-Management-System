@@ -2,8 +2,11 @@ package com.ntc.backend.service;
 
 import com.ntc.backend.dto.StaffCreateDTO;
 import com.ntc.backend.entity.Staff;
+import com.ntc.backend.enums.AuditAction;
 import com.ntc.backend.enums.RequestStatus;
 import com.ntc.backend.enums.StaffRole;
+import com.ntc.backend.repository.AdminRepository;
+import com.ntc.backend.repository.LeaveBalanceRepository;
 import com.ntc.backend.repository.LeaveRequestRepository;
 import com.ntc.backend.repository.StaffRepository;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -22,9 +25,13 @@ public class StaffService {
 
     @Autowired private StaffRepository staffRepository;
     @Autowired private LeaveRequestRepository leaveRequestRepository;
+    @Autowired private LeaveBalanceRepository leaveBalanceRepository;
+    @Autowired private AdminRepository adminRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private EmailService emailService;
     @Autowired private LeaveBalanceService leaveBalanceService;
+    @Autowired private SessionService sessionService;
+    @Autowired private AuditLogService auditLogService;
 
     private static final List<RequestStatus> PENDING_STATUSES = List.of(
             RequestStatus.PENDING_SECTION_HEAD,
@@ -35,7 +42,6 @@ public class StaffService {
     /* ============================================================
        CREATE
        ============================================================ */
-
     @Transactional
     public synchronized Map<String, Object> createStaffWithCredentials(
             StaffCreateDTO dto, String creatorUsername) {
@@ -45,8 +51,7 @@ public class StaffService {
 
         Staff creator = null;
         if (creatorUsername != null) {
-            creator = staffRepository.findByUsername(creatorUsername)
-                    .orElseThrow(() -> new RuntimeException("Creator not found"));
+            creator = staffRepository.findByUsername(creatorUsername).orElse(null);
         }
 
         StaffRole role = dto.getRole() != null ? dto.getRole() : StaffRole.STAFF;
@@ -65,7 +70,6 @@ public class StaffService {
             }
         }
 
-        // ---------- Resolve Staff ID ----------
         String staffId;
         String manual = dto.getStaffId();
         if (manual != null && !manual.isBlank()) {
@@ -77,7 +81,6 @@ public class StaffService {
             staffId = generateStaffId();
         }
 
-        // ---------- Username ----------
         String username = generateUsername(dto.getFullName(), role);
 
         Staff staff = new Staff();
@@ -95,7 +98,6 @@ public class StaffService {
         staff.setPassword(passwordEncoder.encode(rawPassword));
         staff.setFirstLogin(true);
 
-        // ---------- Reporting chain ----------
         Staff sectionHead = null;
         Staff officeIncharge = null;
 
@@ -137,12 +139,17 @@ public class StaffService {
             System.out.println("Email failed: " + e.getMessage());
         }
 
+        try {
+            auditLogService.record(creatorUsername, AuditAction.USER_CREATED,
+                    "STAFF", saved.getStaffId(), saved.getFullName(),
+                    "Created " + saved.getRole() + " account");
+        } catch (Exception ignored) {}
+
         System.out.println("════════════════════════════════════════════════════");
         System.out.println("🔑 NEW ACCOUNT CREATED");
         System.out.println("   Name:     " + saved.getFullName());
         System.out.println("   Staff ID: " + saved.getStaffId());
         System.out.println("   Username: " + saved.getUsername());
-        System.out.println("   Email:    " + saved.getEmail());
         System.out.println("   Password: " + rawPassword);
         System.out.println("   Role:     " + saved.getRole());
         System.out.println("════════════════════════════════════════════════════");
@@ -160,16 +167,18 @@ public class StaffService {
     /* ============================================================
        DELETE / DEACTIVATE / ACTIVATE
        ============================================================ */
+    private boolean isAdmin(String username) {
+        return adminRepository.findByUsername(username).isPresent()
+                || adminRepository.findByEmail(username).isPresent();
+    }
 
-    /** Checks whether the target can be hard-deleted, and returns diagnostics. */
     @Transactional(readOnly = true)
     public Map<String, Object> checkDeleteEligibility(String targetStaffId, String requesterUsername) {
+        if (!isAdmin(requesterUsername))
+            throw new RuntimeException("Only administrators can manage account deletion");
+
         Staff target = staffRepository.findByStaffId(targetStaffId)
                 .orElseThrow(() -> new RuntimeException("Target not found"));
-        Staff requester = staffRepository.findByUsername(requesterUsername)
-                .orElseThrow(() -> new RuntimeException("Requester not found"));
-
-        checkDeletePermission(requester, target);
 
         long pending = leaveRequestRepository.countByStaffAndStatusIn(target, PENDING_STATUSES);
         long total   = leaveRequestRepository.countByStaff(target);
@@ -199,89 +208,12 @@ public class StaffService {
 
     @Transactional
     public void deleteStaff(String targetStaffId, String requesterUsername) {
+        if (!isAdmin(requesterUsername))
+            throw new RuntimeException("Only administrators can delete accounts");
+
         Staff target = staffRepository.findByStaffId(targetStaffId)
                 .orElseThrow(() -> new RuntimeException("Target not found"));
-        Staff requester = staffRepository.findByUsername(requesterUsername)
-                .orElseThrow(() -> new RuntimeException("Requester not found"));
 
-        checkDeletePermission(requester, target);
-        checkCanHardDelete(target);
-
-        staffRepository.delete(target);
-        System.out.println("🗑  HARD DELETED: " + target.getStaffId() + " (" + target.getFullName() + ") by " + requesterUsername);
-    }
-
-    @Transactional
-    public void deactivateStaff(String targetStaffId, String requesterUsername) {
-        Staff target = staffRepository.findByStaffId(targetStaffId)
-                .orElseThrow(() -> new RuntimeException("Target not found"));
-        Staff requester = staffRepository.findByUsername(requesterUsername)
-                .orElseThrow(() -> new RuntimeException("Requester not found"));
-
-        checkDeletePermission(requester, target);
-
-        if (!target.isActive())
-            throw new RuntimeException("User is already deactivated");
-
-        target.setActive(false);
-        target.setDeletedAt(Instant.now());
-        staffRepository.save(target);
-
-        try {
-            emailService.sendAccountDeactivated(target.getEmail(), target.getFullName());
-        } catch (Exception ignored) {}
-
-        System.out.println("🚫 DEACTIVATED: " + target.getStaffId() + " (" + target.getFullName() + ") by " + requesterUsername);
-    }
-
-    @Transactional
-    public void activateStaff(String targetStaffId, String requesterUsername) {
-        Staff target = staffRepository.findByStaffId(targetStaffId)
-                .orElseThrow(() -> new RuntimeException("Target not found"));
-        Staff requester = staffRepository.findByUsername(requesterUsername)
-                .orElseThrow(() -> new RuntimeException("Requester not found"));
-
-        checkDeletePermission(requester, target);
-
-        if (target.isActive())
-            throw new RuntimeException("User is already active");
-
-        target.setActive(true);
-        target.setDeletedAt(null);
-        staffRepository.save(target);
-
-        System.out.println("✅ REACTIVATED: " + target.getStaffId() + " (" + target.getFullName() + ") by " + requesterUsername);
-    }
-
-    /* ============================================================
-       PERMISSION & SAFETY CHECKS
-       ============================================================ */
-
-    private void checkDeletePermission(Staff requester, Staff target) {
-        if (requester.getId().equals(target.getId()))
-            throw new RuntimeException("You cannot delete or deactivate your own account");
-
-        switch (requester.getRole()) {
-            case OFFICE_INCHARGE -> {
-                if (target.getRole() == StaffRole.OFFICE_INCHARGE)
-                    throw new RuntimeException("Office In-Charge cannot delete another Office In-Charge");
-                if (target.getOfficeIncharge() == null
-                        || !target.getOfficeIncharge().getId().equals(requester.getId()))
-                    throw new RuntimeException("This user is not under your scope");
-            }
-            case SECTION_HEAD -> {
-                if (target.getRole() != StaffRole.STAFF)
-                    throw new RuntimeException("Section Heads can only delete Staff accounts");
-                if (target.getSectionHead() == null
-                        || !target.getSectionHead().getId().equals(requester.getId()))
-                    throw new RuntimeException("This staff is not assigned to you");
-            }
-            case STAFF -> throw new RuntimeException("Staff cannot delete accounts");
-            // ADMIN: no restriction
-        }
-    }
-
-    private void checkCanHardDelete(Staff target) {
         long pending = leaveRequestRepository.countByStaffAndStatusIn(target, PENDING_STATUSES);
         if (pending > 0)
             throw new RuntimeException("Cannot delete: user has " + pending
@@ -297,12 +229,90 @@ public class StaffService {
 
         if (staffRepository.countByOfficeInchargeId(target.getId()) > 0)
             throw new RuntimeException("Cannot delete: user is assigned as Office In-Charge for other staff");
+
+        try { sessionService.revokeAllForUser("STAFF", target.getId(), "ACCOUNT_DELETED"); }
+        catch (Exception ignored) {}
+
+        try { leaveBalanceRepository.deleteByStaffId(target.getId()); }
+        catch (Exception e) {
+            System.out.println("Warning: failed to delete leave balances — " + e.getMessage());
+        }
+
+        try {
+            auditLogService.record(requesterUsername, AuditAction.USER_DELETED,
+                    "STAFF", target.getStaffId(), target.getFullName(),
+                    "Permanently deleted");
+        } catch (Exception ignored) {}
+
+        staffRepository.delete(target);
+        System.out.println("🗑  HARD DELETED: " + target.getStaffId()
+                + " (" + target.getFullName() + ") by admin " + requesterUsername);
+    }
+
+    @Transactional
+    public void deactivateStaff(String targetStaffId, String requesterUsername) {
+        if (!isAdmin(requesterUsername))
+            throw new RuntimeException("Only administrators can deactivate accounts");
+
+        Staff target = staffRepository.findByStaffId(targetStaffId)
+                .orElseThrow(() -> new RuntimeException("Target not found"));
+
+        if (!target.isActive())
+            throw new RuntimeException("User is already deactivated");
+
+        target.setActive(false);
+        target.setDeletedAt(Instant.now());
+        staffRepository.save(target);
+
+        try {
+            int revoked = sessionService.revokeAllForUser("STAFF", target.getId(), "ACCOUNT_DEACTIVATED");
+            System.out.println("🔐 Deactivated user — revoked " + revoked + " active session(s)");
+        } catch (Exception e) {
+            System.out.println("Warning: could not revoke sessions on deactivate — " + e.getMessage());
+        }
+
+        try {
+            emailService.sendAccountDeactivated(target.getEmail(), target.getFullName());
+        } catch (Exception ignored) {}
+
+        try {
+            auditLogService.record(requesterUsername, AuditAction.USER_DEACTIVATED,
+                    "STAFF", target.getStaffId(), target.getFullName(),
+                    "Account deactivated");
+        } catch (Exception ignored) {}
+
+        System.out.println("🚫 DEACTIVATED: " + target.getStaffId()
+                + " (" + target.getFullName() + ") by admin " + requesterUsername);
+    }
+
+    @Transactional
+    public void activateStaff(String targetStaffId, String requesterUsername) {
+        if (!isAdmin(requesterUsername))
+            throw new RuntimeException("Only administrators can reactivate accounts");
+
+        Staff target = staffRepository.findByStaffId(targetStaffId)
+                .orElseThrow(() -> new RuntimeException("Target not found"));
+
+        if (target.isActive())
+            throw new RuntimeException("User is already active");
+
+        target.setActive(true);
+        target.setDeletedAt(null);
+        staffRepository.save(target);
+
+        try {
+            auditLogService.record(requesterUsername, AuditAction.USER_REACTIVATED,
+                    "STAFF", target.getStaffId(), target.getFullName(),
+                    "Account reactivated");
+        } catch (Exception ignored) {}
+
+        System.out.println("✅ REACTIVATED: " + target.getStaffId()
+                + " (" + target.getFullName() + ") by admin " + requesterUsername);
     }
 
     /* ============================================================
        HELPERS
        ============================================================ */
-
     private String generateStaffId() {
         Long max = staffRepository.findMaxNumericStaffId();
         long next = (max == null ? 10000L : max) + 1;

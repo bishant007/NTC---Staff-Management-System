@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getSignatureByFilename } from '../services/authService';
+import { formatNepalDateTime, formatSnapshotValue } from '../utils/date';
 
 const parseSnapshot = (str) => {
   const out = {};
@@ -44,10 +45,7 @@ export default function NoticeDetailModal({ notice, onClose, onDownloadPdf }) {
     })();
   }, [notice]);
 
-  const fmt = (v) => v ? new Date(v).toLocaleString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  }) : '—';
+  const fmt = (v) => formatNepalDateTime(v);
 
   const staffSnap = parseSnapshot(notice.staffSnapshot);
   const shSnap = parseSnapshot(notice.sectionHeadSnapshot);
@@ -65,7 +63,6 @@ export default function NoticeDetailModal({ notice, onClose, onDownloadPdf }) {
         </div>
 
         <div style={{ background: '#fff', padding: '36px 44px', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-          {/* Letterhead */}
           <div style={{ borderBottom: '2px solid #0b2e6f', paddingBottom: 12, marginBottom: 22, textAlign: 'center' }}>
             <h1 style={{ margin: 0, fontSize: 22, color: '#0b2e6f', letterSpacing: 2 }}>NEPAL TELECOM</h1>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>Leave Approval Notice</p>
@@ -122,7 +119,7 @@ function SnapSection({ title, data }) {
         {keys.map(k => (
           <div key={k} style={{ display: 'flex', fontSize: 13, padding: '4px 0' }}>
             <div style={{ width: 110, color: '#64748b', fontWeight: 600 }}>{humanize(k)}</div>
-            <div style={{ flex: 1, color: '#0f172a' }}>{data[k] || '—'}</div>
+            <div style={{ flex: 1, color: '#0f172a' }}>{formatSnapshotValue(data[k])}</div>
           </div>
         ))}
       </div>

@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import RequestDetail from '../../components/RequestDetail';
+import StaffLeaveStatsTable from '../../components/StaffLeaveStatsTable';
+import { useAuth } from '../../context/AuthContext';
 import {
   getOfficeInchargeHistory, getNoticeByRequest, getSignatureBase64
 } from '../../services/authService';
 import { downloadNoticePdf } from '../../utils/noticePdf';
+import { formatNepalDateTime } from '../../utils/date';
 
 function ApprovalHistory() {
+  const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(null);
   const [filter, setFilter] = useState('ALL');
@@ -73,6 +77,14 @@ function ApprovalHistory() {
           <MiniStat label="Cancelled" value={counts.CANCELLED} color="#64748b" />
         </div>
 
+        <StaffLeaveStatsTable
+          requests={items}
+          loading={items.length === 0 && busy === null && false}
+          title="Leave Request History — Self & My Staff"
+          highlightStaffId={user?.staffId}
+          note="Per-staff total of every request submitted in your scope (you + Section Heads + staff reporting to you)."
+        />
+
         <div style={{ background: '#fff', padding: 14, borderRadius: 12, display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
           <input placeholder="Search by staff or reference number"
             value={search} onChange={e => setSearch(e.target.value)}
@@ -109,8 +121,8 @@ function ApprovalHistory() {
                     <td style={{ ...td, fontSize: 12, color: '#0d6efd', fontWeight: 700 }}>{r.referenceNumber}</td>
                     <td style={td}>{r.staffName}</td>
                     <td style={td}>{r.leaveType?.replace(/_/g, ' ')}</td>
-                    <td style={td}>{new Date(r.leaveStartTime).toLocaleDateString()}</td>
-                    <td style={td}>{new Date(r.returnDateTime).toLocaleDateString()}</td>
+                    <td style={{ ...td, fontSize: 13 }}>{formatNepalDateTime(r.leaveStartTime)}</td>
+                    <td style={{ ...td, fontSize: 13 }}>{formatNepalDateTime(r.returnDateTime)}</td>
                     <td style={td}><StatusPill status={r.status} /></td>
                     <td style={td} onClick={e => e.stopPropagation()}>
                       <button onClick={() => setSelected(r)} style={{ ...actionBtn, background: '#f1f5f9', color: '#0b2e6f', marginRight: 6 }}>View</button>
@@ -167,6 +179,7 @@ function StatusPill({ status }) {
   const m = {
     PENDING_SECTION_HEAD:    { bg: '#fef3c7', fg: '#92400e' },
     PENDING_OFFICE_INCHARGE: { bg: '#dbeafe', fg: '#1e40af' },
+    PENDING_SELF_APPROVAL:   { bg: '#e0e7ff', fg: '#3730a3' },
     APPROVED:                { bg: '#d1fae5', fg: '#065f46' },
     REJECTED:                { bg: '#fee2e2', fg: '#991b1b' },
     CANCELLED:               { bg: '#e5e7eb', fg: '#374151' },

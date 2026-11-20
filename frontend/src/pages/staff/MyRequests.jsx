@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from '../../components/Sidebar';
 import RequestDetail from '../../components/RequestDetail';
+import StaffLeaveStatsTable from '../../components/StaffLeaveStatsTable';
 import { getMyRequests, cancelMyRequest } from '../../services/authService';
 
 function MyRequests() {
@@ -40,6 +41,11 @@ function MyRequests() {
 
   if (loading) return <div style={{ marginLeft: 250, padding: 30 }}>Loading...</div>;
 
+  const cancellable = (s) =>
+    s === 'PENDING_SECTION_HEAD' ||
+    s === 'PENDING_OFFICE_INCHARGE' ||
+    s === 'PENDING_SELF_APPROVAL';
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#eef4ff' }}>
       <Sidebar />
@@ -48,6 +54,14 @@ function MyRequests() {
         <p style={{ color: '#5b7bab', marginBottom: 24 }}>
           Complete history with approval trail. You can cancel any pending request.
         </p>
+
+        <StaffLeaveStatsTable
+          requests={requests}
+          loading={loading}
+          title="My Leave Request History"
+          highlightStaffId={user?.staffId}
+          note="A summary of every leave request you have submitted."
+        />
 
         {message && (
           <p style={{ fontWeight: 600, color: message.startsWith('✅') ? 'green' : '#dc3545' }}>
@@ -62,7 +76,7 @@ function MyRequests() {
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
             .map(r => (
               <RequestDetail key={r.id} request={r} viewerRole="staff">
-                {(r.status === 'PENDING_SECTION_HEAD' || r.status === 'PENDING_DEPARTMENT_HEAD') && (
+                {cancellable(r.status) && (
                   <div style={{ marginTop: 14 }}>
                     <button onClick={() => setConfirmId(r.id)} style={{
                       padding: '10px 20px', background: '#dc3545', color: '#fff',

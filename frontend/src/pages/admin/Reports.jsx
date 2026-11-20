@@ -6,6 +6,7 @@ import {
 import {
   downloadUserDirectoryPdf, downloadLeaveLedgerPdf, downloadApprovalTimelinePdf,
 } from '../../utils/reportPdf';
+import { leaveTypeLabel } from '../../utils/leaveTypes';
 
 function Reports() {
   const [tab, setTab] = useState('users');
@@ -19,7 +20,7 @@ function Reports() {
     (async () => {
       try {
         const [u, r, n] = await Promise.all([
-          getAllStaff(),
+          getAllStaff({ includeInactive: true }),
           getLeaveRequests(),
           getAllNotices(),
         ]);
@@ -83,6 +84,13 @@ function UserDirectory({ users }) {
     OFFICE_INCHARGE: users.filter(u => u.role === 'OFFICE_INCHARGE').length,
   };
 
+  const exportPdf = () => {
+    downloadUserDirectoryPdf(filtered, {
+      roleFilter: role || null,
+      deptFilter: dept || null,
+    });
+  };
+
   return (
     <div style={{ background: '#fff', borderRadius: 16, padding: 20 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 18 }}>
@@ -103,7 +111,7 @@ function UserDirectory({ users }) {
           <option value="">All departments</option>
           {depts.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
-        <button onClick={() => downloadUserDirectoryPdf(filtered)} style={exportBtn}>
+        <button onClick={exportPdf} style={exportBtn}>
           📄 Export PDF ({filtered.length})
         </button>
       </div>
@@ -140,7 +148,20 @@ function UserDirectory({ users }) {
 /* ---------------- Leave Ledger ---------------- */
 function LeaveLedger({ requests }) {
   const [status, setStatus] = useState('');
-  const filtered = requests.filter(r => !status || r.status === status);
+  const [category, setCategory] = useState('');
+
+  const filtered = requests.filter(r => {
+    if (status && r.status !== status) return false;
+    if (category && (r.category || 'PERSONAL') !== category) return false;
+    return true;
+  });
+
+  const exportPdf = () => {
+    downloadLeaveLedgerPdf(filtered, {
+      statusFilter: status || null,
+      categoryFilter: category || null,
+    });
+  };
 
   return (
     <div style={{ background: '#fff', borderRadius: 16, padding: 20 }}>
@@ -152,16 +173,23 @@ function LeaveLedger({ requests }) {
         <MiniStat label="Pending" value={requests.filter(r => r.status?.startsWith('PENDING')).length} color="#f59e0b" />
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 14, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
         <select value={status} onChange={e => setStatus(e.target.value)} style={inp}>
           <option value="">All statuses</option>
           <option value="PENDING_SECTION_HEAD">Pending Section Head</option>
           <option value="PENDING_OFFICE_INCHARGE">Pending Office Incharge</option>
+          <option value="PENDING_SELF_APPROVAL">Pending Self Approval</option>
+          <option value="ON_HOLD">On Hold</option>
           <option value="APPROVED">Approved</option>
           <option value="REJECTED">Rejected</option>
           <option value="CANCELLED">Cancelled</option>
         </select>
-        <button onClick={() => downloadLeaveLedgerPdf(filtered)} style={exportBtn}>
+        <select value={category} onChange={e => setCategory(e.target.value)} style={inp}>
+          <option value="">All categories</option>
+          <option value="OFFICE_WORK">💼 Office Work</option>
+          <option value="PERSONAL">🏖️ Personal</option>
+        </select>
+        <button onClick={exportPdf} style={exportBtn}>
           📄 Export PDF ({filtered.length})
         </button>
       </div>
@@ -170,7 +198,8 @@ function LeaveLedger({ requests }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: '#f8fafc' }}>
-              <th style={th}>Ref No.</th><th style={th}>Staff</th><th style={th}>Type</th>
+              <th style={th}>Ref No.</th><th style={th}>Staff</th>
+              <th style={th}>Category</th><th style={th}>Type</th>
               <th style={th}>Start</th><th style={th}>Return</th>
               <th style={th}>Section Head</th><th style={th}>Office In-Charge</th>
               <th style={th}>Status</th>
@@ -181,7 +210,19 @@ function LeaveLedger({ requests }) {
               <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ ...td, fontWeight: 700, color: '#0d6efd', fontSize: 12 }}>{r.referenceNumber || '—'}</td>
                 <td style={td}>{r.staffName}</td>
-                <td style={td}>{r.leaveType?.replace(/_/g, ' ')}</td>
+                <td style={td}>
+                  {(r.category || 'PERSONAL') === 'OFFICE_WORK'
+                    ? <span style={pill('#dbeafe', '#1e40af')}>💼 Office</span>
+                    : <span style={pill('#ede9fe', '#6b21a8')}>🏖️ Personal</span>}
+                </td>
+                <td style={td}>
+                  <div>{r.leaveTypeLabel || leaveTypeLabel(r.leaveType)}</div>
+                  {r.customLeaveType && (
+                    <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic', marginTop: 2 }}>
+                      {r.customLeaveType}
+                    </div>
+                  )}
+                </td>
                 <td style={td}>{r.leaveStartTime ? new Date(r.leaveStartTime).toLocaleDateString() : '—'}</td>
                 <td style={td}>{r.returnDateTime ? new Date(r.returnDateTime).toLocaleDateString() : '—'}</td>
                 <td style={{ ...td, fontSize: 12, color: '#64748b' }}>{r.sectionHeadName || '—'}</td>
@@ -201,6 +242,8 @@ function ApprovalTimeline({ notices }) {
   const filtered = [...notices].sort((a, b) =>
     new Date(b.decisionDate || b.createdAt) - new Date(a.decisionDate || a.createdAt));
 
+  const exportPdf = () => downloadApprovalTimelinePdf(filtered);
+
   return (
     <div style={{ background: '#fff', borderRadius: 16, padding: 20 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 18 }}>
@@ -210,7 +253,7 @@ function ApprovalTimeline({ notices }) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
-        <button onClick={() => downloadApprovalTimelinePdf(filtered)} style={exportBtn}>
+        <button onClick={exportPdf} style={exportBtn}>
           📄 Export PDF ({filtered.length})
         </button>
       </div>
@@ -274,5 +317,12 @@ const exportBtn = {
   border: 'none', borderRadius: 8, cursor: 'pointer',
   fontWeight: 700, fontSize: 13, marginLeft: 'auto',
 };
+
+function pill(bg, fg) {
+  return {
+    padding: '3px 10px', borderRadius: 14, fontSize: 11, fontWeight: 700,
+    background: bg, color: fg, whiteSpace: 'nowrap',
+  };
+}
 
 export default Reports;

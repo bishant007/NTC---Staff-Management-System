@@ -3,6 +3,7 @@ import AdminSidebar from '../../components/AdminSidebar';
 import NoticeDetailModal from '../../components/NoticeDetailModal';
 import { getAllNotices, getSignatureBase64 } from '../../services/authService';
 import { downloadNoticePdf } from '../../utils/noticePdf';
+import { formatNepalDateTime } from '../../utils/date';
 
 function Notices() {
   const [items, setItems] = useState([]);
@@ -88,7 +89,7 @@ function Notices() {
                       <td style={{ ...td, fontSize: 12, color: '#0d6efd', fontWeight: 700 }}>{n.referenceNumber}</td>
                       <td style={td}><TypePill type={n.noticeType} /></td>
                       <td style={td}>{n.finalDecisionByRole}</td>
-                      <td style={td}>{new Date(n.createdAt).toLocaleString()}</td>
+                      <td style={{ ...td, fontSize: 13 }}>{formatNepalDateTime(n.decisionDate || n.createdAt)}</td>
                       <td style={td} onClick={e => e.stopPropagation()}>
                         <button onClick={() => setSelected(n)} style={{ ...actionBtn, background: '#f1f5f9', color: '#0b2e6f', marginRight: 6 }}>
                           View

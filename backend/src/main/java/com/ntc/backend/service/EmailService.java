@@ -13,15 +13,12 @@ public class EmailService {
 
     @Autowired private JavaMailSender mailSender;
 
-    /** Comes from secrets file — must match the authenticated SMTP account. */
     @Value("${spring.mail.username}")
     private String fromAddress;
 
-    /** Friendly display name shown to recipients in their inbox. */
     @Value("${mail.from.name:NTC Leave Management}")
     private String fromName;
 
-    // Brand palette
     private static final String NAVY     = "#0b2e6f";
     private static final String BLUE     = "#0d6efd";
     private static final String BLUE_DK  = "#0a4fc4";
@@ -35,16 +32,11 @@ public class EmailService {
     private static final String FONT     = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
     /* =========================================================
-       PUBLIC API
+       PUBLIC API — account
        ========================================================= */
-
-    public void sendStaffCredentials(String to,
-                                     String fullName,
-                                     String staffId,
-                                     String username,
-                                     String tempPassword,
-                                     String role) {
-
+    public void sendStaffCredentials(String to, String fullName,
+                                     String staffId, String username,
+                                     String tempPassword, String role) {
         String roleLabel = prettyRole(role);
         String subject  = "Welcome to Nepal Telecom — Your Account is Ready";
 
@@ -52,21 +44,16 @@ public class EmailService {
                 + para("Dear <strong style=\"color:" + NAVY + ";\">" + esc(fullName) + "</strong>,")
                 + para("Your <strong>NTC Staff Leave Management</strong> account has been created. "
                 + "You can now access the portal using the credentials below.")
-
                 + credentialsCard(staffId, username, tempPassword, roleLabel)
-
                 + ctaButton("https://localhost:5173/staff/login", "Log In to Your Account")
-
                 + divider()
                 + noticeBlock("🔒", "First-time login",
                 "You will be prompted to <strong>set a new password</strong> on your first login. "
                         + "Choose something strong and unique — at least 8 characters.")
-
                 + noticeBlock("✍", "Digital signature",
                 "Before submitting or approving any leave request, upload your "
                         + "<strong>digital signature</strong> from <em>My Profile → Digital Signature</em>. "
                         + "It will be applied automatically to every action you take.")
-
                 + para("If you did not request this account or believe this email was sent in error, "
                 + "please contact the NTC Administrator immediately.")
                 + para("Warm regards,<br/><strong>NTC Administration</strong><br/>"
@@ -75,12 +62,8 @@ public class EmailService {
         sendHtmlEmail(to, subject, wrap(subject, body));
     }
 
-    public void sendRequestStatusUpdate(String to,
-                                        String fullName,
-                                        String refNo,
-                                        String status,
-                                        String remarks) {
-
+    public void sendRequestStatusUpdate(String to, String fullName,
+                                        String refNo, String status, String remarks) {
         String subject = "Leave Request Update — " + refNo;
         String body = ""
                 + para("Dear <strong style=\"color:" + NAVY + ";\">" + esc(fullName) + "</strong>,")
@@ -88,7 +71,6 @@ public class EmailService {
                 + statusCard(status, remarks)
                 + ctaButton("https://localhost:5173/staff/my-requests", "View Your Request")
                 + para("Thank you,<br/><strong>NTC Administration</strong>");
-
         sendHtmlEmail(to, subject, wrap(subject, body));
     }
 
@@ -110,15 +92,78 @@ public class EmailService {
         sendHtmlEmail(to, subject, wrap(subject, body));
     }
 
+    /* =========================================================
+       PUBLIC API — hold / session alerts (new)
+       ========================================================= */
+    public void sendRequestOnHold(String to, String fullName, String refNo,
+                                  String heldByName, String heldByRole,
+                                  String holdUntilNepal, String reason) {
+        String subject = "Your leave request is ON HOLD — " + refNo;
+        String body = ""
+                + para("Dear <strong style=\"color:" + NAVY + ";\">" + esc(fullName) + "</strong>,")
+                + para("Your leave request <strong>" + esc(refNo) + "</strong> has been placed "
+                + "<strong style=\"color:" + WARN + ";\">ON HOLD</strong>.")
+                + statusCard("ON HOLD", reason)
+                + noticeBlock("⏱", "Hold details",
+                "Held by <strong>" + esc(heldByName) + "</strong> (" + esc(heldByRole) + ")<br/>"
+                        + "Decision required by <strong>" + esc(holdUntilNepal) + "</strong>")
+                + noticeBlock("⚠", "What happens next",
+                "If no decision is made before the hold time, the request will be "
+                        + "<strong>automatically rejected</strong>.")
+                + ctaButton("https://localhost:5173/staff/my-requests", "View Your Request")
+                + para("Regards,<br/><strong>NTC Administration</strong>");
+        sendHtmlEmail(to, subject, wrap(subject, body));
+    }
+
+    public void sendHoldExpired(String to, String fullName, String refNo, String holdTimeNepal) {
+        String subject = "Leave Request Auto-Rejected — " + refNo;
+        String body = ""
+                + para("Dear <strong style=\"color:" + NAVY + ";\">" + esc(fullName) + "</strong>,")
+                + para("Your leave request <strong>" + esc(refNo) + "</strong> was "
+                + "<strong style=\"color:#dc2626;\">automatically rejected</strong> "
+                + "because the hold period expired without a decision.")
+                + statusCard("AUTO-REJECTED",
+                "Hold expired at " + holdTimeNepal + " with no decision recorded.")
+                + ctaButton("https://localhost:5173/staff/my-requests", "View Request")
+                + para("If you believe this was an error, please contact your approver.");
+        sendHtmlEmail(to, subject, wrap(subject, body));
+    }
+
+    public void sendNewLoginAlert(String to, String fullName,
+                                  String ip, String userAgent, String whenNepal) {
+        String subject = "New sign-in to your NTC account";
+        String body = ""
+                + para("Dear <strong style=\"color:" + NAVY + ";\">" + esc(fullName) + "</strong>,")
+                + para("We noticed a new sign-in to your account from a device we haven't seen before.")
+                + noticeBlock("🕒", "When", esc(whenNepal))
+                + noticeBlock("🌐", "IP address", esc(ip))
+                + noticeBlock("💻", "Device", esc(userAgent == null || userAgent.isBlank()
+                ? "Unknown" : userAgent))
+                + noticeBlock("🔒", "Not you?",
+                "Immediately change your password and contact your NTC Administrator.")
+                + para("Regards,<br/><strong>NTC Administration</strong>");
+        sendHtmlEmail(to, subject, wrap(subject, body));
+    }
+
+    public void sendSessionRevoked(String to, String fullName, String details) {
+        String subject = "Some of your NTC sessions were ended";
+        String body = ""
+                + para("Dear <strong style=\"color:" + NAVY + ";\">" + esc(fullName) + "</strong>,")
+                + para("Some of your logged-in sessions were ended by the system or an administrator.")
+                + noticeBlock("ℹ", "Details", esc(details))
+                + ctaButton("https://localhost:5173/staff/login", "Sign In Again")
+                + para("If this wasn't expected, please change your password right away.");
+        sendHtmlEmail(to, subject, wrap(subject, body));
+    }
+
+    /* =========================================================
+       CORE SEND
+       ========================================================= */
     public void sendHtmlEmail(String to, String subject, String htmlBody) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper h = new MimeMessageHelper(message, true, "UTF-8");
-
-            // ⭐ The From address MUST match spring.mail.username, otherwise
-            // Google Workspace / Microsoft 365 reject the send.
             h.setFrom(fromAddress, fromName);
-
             h.setTo(to);
             h.setSubject(subject);
             h.setText(htmlBody, true);
@@ -131,7 +176,6 @@ public class EmailService {
     /* =========================================================
        LAYOUT PIECES
        ========================================================= */
-
     private String wrap(String subject, String bodyHtml) {
         return "<!DOCTYPE html>"
                 + "<html><head><meta charset=\"UTF-8\"/><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>"
@@ -220,6 +264,7 @@ public class EmailService {
 
         if (s.contains("APPROVED")) { color = "#d1fae5"; fg = "#065f46"; }
         else if (s.contains("REJECTED")) { color = "#fee2e2"; fg = "#991b1b"; }
+        else if (s.contains("HOLD")) { color = "#fef3c7"; fg = "#92400e"; }
         else if (s.contains("PENDING")) { color = "#fef3c7"; fg = "#92400e"; }
         else if (s.contains("CANCEL")) { color = "#e5e7eb"; fg = "#374151"; }
 
@@ -277,7 +322,6 @@ public class EmailService {
     /* =========================================================
        HELPERS
        ========================================================= */
-
     private String prettyRole(String role) {
         if (role == null) return "";
         return switch (role) {

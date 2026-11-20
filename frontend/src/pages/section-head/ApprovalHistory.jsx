@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import RequestDetail from '../../components/RequestDetail';
+import StaffLeaveStatsTable from '../../components/StaffLeaveStatsTable';
+import { useAuth } from '../../context/AuthContext';
 import { getSectionHeadHistory } from '../../services/authService';
 
 function SectionHeadHistory() {
+  const { user } = useAuth();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
@@ -48,7 +51,7 @@ function SectionHeadHistory() {
       <div style={{ flex: 1, marginLeft: 250, padding: 30 }}>
         <h1 style={{ color: '#0b2e6f', marginBottom: 4 }}>Approval History</h1>
         <p style={{ color: '#5b7bab', marginTop: 0, marginBottom: 20 }}>
-          All requests from your assigned staff.
+          All requests from your assigned staff and your own leave requests.
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14, marginBottom: 22 }}>
@@ -59,6 +62,14 @@ function SectionHeadHistory() {
           <MiniStat label="Approved" value={counts.APPROVED} color="#16a34a" />
           <MiniStat label="Rejected" value={counts.REJECTED} color="#dc3545" />
         </div>
+
+        <StaffLeaveStatsTable
+          requests={requests}
+          loading={loading}
+          title="Leave Request History — Self & My Staff"
+          highlightStaffId={user?.staffId}
+          note="Per-staff total of every request submitted in your scope (you + your assigned staff)."
+        />
 
         <div style={{ background: '#fff', padding: 14, borderRadius: 12, display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
           <input placeholder="Search by staff or reference number"

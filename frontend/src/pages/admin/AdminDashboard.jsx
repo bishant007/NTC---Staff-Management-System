@@ -47,6 +47,7 @@ function AdminDashboard() {
     totalUsers: 0, totalStaff: 0, totalSectionHeads: 0, totalOfficeIncharge: 0,
     activeUsers: 0, fieldRequests: 0, pendingRequests: 0,
     todayRequests: 0, passwordReset: 0,
+    onHoldRequests: 0, officeWorkRequests: 0, officeWorkPending: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -54,7 +55,7 @@ function AdminDashboard() {
   const loadDashboard = async () => {
     try {
       const res = await getDashboardStats();
-      setD({ ...d, ...res.data });
+      setD(prev => ({ ...prev, ...res.data }));
       setLoadError(null);
     } catch (err) {
       console.log(err);
@@ -70,14 +71,11 @@ function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const v = isLoading ? "…" : (n) => n;
-
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#eef4ff" }}>
       <AdminSidebar />
       <div style={{ flex: 1, marginLeft: 250, padding: "30px" }}>
 
-        {/* Top Bar */}
         <div style={{
           height: 72, background: "#fff", display: "flex",
           justifyContent: "space-between", alignItems: "center",
@@ -92,7 +90,6 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* Welcome Banner */}
         <div style={{
           background: "linear-gradient(135deg,#0b2e6f,#0d6efd)",
           borderRadius: 20, padding: "30px 40px", color: "white",
@@ -119,38 +116,52 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* Primary Cards */}
         <h3 style={{ color: "#0b2e6f", marginTop: 0, marginBottom: 14, fontSize: 16, letterSpacing: 0.5 }}>
           USERS
         </h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 20, marginBottom: 28 }}>
           <DashboardCard title="Total Users"    value={isLoading ? "…" : d.totalUsers}
             subtitle="All accounts"             icon="👥" color="#1e40af" bg="#dbeafe"
-            onClick={() => navigate('/admin/staff-management')} />
+            onClick={() => navigate('/admin/staff-management?status=all')} />
           <DashboardCard title="Staff"          value={isLoading ? "…" : d.totalStaff}
             subtitle="Regular employees"        icon="👨‍💼" color="#0e7490" bg="#cffafe"
-            onClick={() => navigate('/admin/staff-management?role=STAFF')} />
+            onClick={() => navigate('/admin/staff-management?role=STAFF&status=active')} />
           <DashboardCard title="Section Heads"  value={isLoading ? "…" : d.totalSectionHeads}
             subtitle="First-level approvers"    icon="🧑‍💼" color="#7c3aed" bg="#ede9fe"
-            onClick={() => navigate('/admin/staff-management?role=SECTION_HEAD')} />
+            onClick={() => navigate('/admin/staff-management?role=SECTION_HEAD&status=active')} />
           <DashboardCard title="Office In-Charge" value={isLoading ? "…" : d.totalOfficeIncharge}
             subtitle="Final approvers"          icon="🏢" color="#9d174d" bg="#fce7f3"
-            onClick={() => navigate('/admin/staff-management?role=DEPARTMENT_HEAD')} />
+            onClick={() => navigate('/admin/staff-management?role=OFFICE_INCHARGE&status=active')} />
         </div>
 
         <h3 style={{ color: "#0b2e6f", marginTop: 0, marginBottom: 14, fontSize: 16, letterSpacing: 0.5 }}>
           ACTIVITY
         </h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 20, marginBottom: 28 }}>
           <DashboardCard title="Field Requests" value={isLoading ? "…" : d.fieldRequests}
             subtitle="Total requests"           icon="📋" color="#ea580c" bg="#ffedd5"
             onClick={() => navigate('/admin/field-requests')} />
           <DashboardCard title="Pending Approval" value={isLoading ? "…" : d.pendingRequests}
             subtitle="Awaiting action"          icon="⏳" color="#dc2626" bg="#fee2e2"
-            onClick={() => navigate('/admin/field-requests?status=PENDING')} />
+            onClick={() => navigate('/admin/field-requests')} />
+          <DashboardCard title="On Hold"          value={isLoading ? "…" : (d.onHoldRequests ?? 0)}
+            subtitle="Awaiting decision"        icon="⏸" color="#b45309" bg="#fef3c7"
+            onClick={() => navigate('/admin/field-requests?status=ON_HOLD')} />
           <DashboardCard title="Today's Requests" value={isLoading ? "…" : d.todayRequests}
             subtitle="Submitted today"          icon="📅" color="#7c3aed" bg="#ede9fe"
             onClick={() => navigate('/admin/field-requests')} />
+        </div>
+
+        <h3 style={{ color: "#0b2e6f", marginTop: 0, marginBottom: 14, fontSize: 16, letterSpacing: 0.5 }}>
+          OFFICE WORK
+        </h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 20, marginBottom: 28 }}>
+          <DashboardCard title="Office Work Requests" value={isLoading ? "…" : (d.officeWorkRequests ?? 0)}
+            subtitle="All-time business leave"   icon="💼" color="#0d6efd" bg="#dbeafe"
+            onClick={() => navigate('/admin/field-requests?category=OFFICE_WORK')} />
+          <DashboardCard title="Office Work Pending"  value={isLoading ? "…" : (d.officeWorkPending ?? 0)}
+            subtitle="Awaiting approval"         icon="🕒" color="#0891b2" bg="#cffafe"
+            onClick={() => navigate('/admin/field-requests?category=OFFICE_WORK')} />
         </div>
 
         <h3 style={{ color: "#0b2e6f", marginTop: 28, marginBottom: 14, fontSize: 16, letterSpacing: 0.5 }}>
@@ -158,8 +169,8 @@ function AdminDashboard() {
         </h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 20 }}>
           <DashboardCard title="Active Users" value={isLoading ? "…" : d.activeUsers}
-            subtitle="Logged in at least once"  icon="✅" color="#16a34a" bg="#dcfce7"
-            onClick={() => navigate('/admin/staff-management')} />
+            subtitle="Currently enabled"        icon="✅" color="#16a34a" bg="#dcfce7"
+            onClick={() => navigate('/admin/staff-management?status=active')} />
           <DashboardCard title="Password Reset" value={isLoading ? "…" : d.passwordReset}
             subtitle="Pending requests"         icon="🔑" color="#0891b2" bg="#cffafe"
             onClick={() => navigate('/admin/password-reset')} />

@@ -4,18 +4,21 @@ import Sidebar from '../../components/Sidebar';
 import RequestDetail from '../../components/RequestDetail';
 import {
   getOfficeInchargeRequests, approveByOfficeIncharge, rejectByOfficeIncharge,
-  getMyProfile, getSignatureBlob, getOfficeInchargeHistory,
+  holdByOfficeIncharge, getMyProfile, getSignatureBlob, getOfficeInchargeHistory,
 } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
+import { formatNepalDateTime, formatNepalDate, nepalLocalInputToIso, isoToNepalLocalInput } from '../../utils/date';
 
 function PendingApprovals() {
   const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeAction, setActiveAction] = useState(null);
+  const [activeAction, setActiveAction] = useState(null); // { type: 'approve'|'reject'|'hold', id }
   const [notes, setNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [holdUntilLocal, setHoldUntilLocal] = useState('');
+  const [holdReason, setHoldReason] = useState('');
   const [msg, setMsg] = useState('');
   const [profile, setProfile] = useState(null);
   const [checkingSig, setCheckingSig] = useState(true);
@@ -51,8 +54,16 @@ function PendingApprovals() {
     })();
   }, []);
 
-  const openApprove = (r) => { setActiveAction({ type: 'approve', id: r.id }); setNotes(''); };
-  const openReject  = (r) => { setActiveAction({ type: 'reject', id: r.id }); setRejectionReason(''); };
+  const openApprove = (r) => { setActiveAction({ type: 'approve', id: r.id }); setNotes(''); setMsg(''); };
+  const openReject  = (r) => { setActiveAction({ type: 'reject', id: r.id }); setRejectionReason(''); setMsg(''); };
+  const openHold    = (r) => {
+    setActiveAction({ type: 'hold', id: r.id });
+    setMsg('');
+    // Default: 30 minutes from now, in Nepal local representation
+    const in30 = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    setHoldUntilLocal(isoToNepalLocalInput(in30));
+    setHoldReason('');
+  };
   const closeAction = () => setActiveAction(null);
 
   const submitApprove = async (id) => {
@@ -62,9 +73,7 @@ function PendingApprovals() {
       setMsg('✅ Approved');
       closeAction();
       load();
-    } catch (e) {
-      setMsg('❌ ' + (e.response?.data?.message || e.message));
-    }
+    } catch (e) { setMsg('❌ ' + (e.response?.data?.message || e.message)); }
   };
 
   const submitReject = async (id) => {
@@ -75,9 +84,23 @@ function PendingApprovals() {
       setMsg('✅ Rejected');
       closeAction();
       load();
-    } catch (e) {
-      setMsg('❌ ' + (e.response?.data?.message || e.message));
+    } catch (e) { setMsg('❌ ' + (e.response?.data?.message || e.message)); }
+  };
+
+  const submitHold = async (id) => {
+    if (!holdUntilLocal) { setMsg('❌ Please pick a hold-until time'); return; }
+    if (!holdReason.trim()) { setMsg('❌ Hold reason is required'); return; }
+    const iso = nepalLocalInputToIso(holdUntilLocal);
+    if (new Date(iso).getTime() <= Date.now()) {
+      setMsg('❌ Hold time must be in the future');
+      return;
     }
+    try {
+      await holdByOfficeIncharge(id, iso, holdReason);
+      setMsg('✅ Request placed on hold — administrators have been notified.');
+      closeAction();
+      load();
+    } catch (e) { setMsg('❌ ' + (e.response?.data?.message || e.message)); }
   };
 
   if (loading || checkingSig) return <div style={{ marginLeft: 250, padding: 30 }}>Loading...</div>;
@@ -122,37 +145,39 @@ function PendingApprovals() {
             <RequestDetail key={r.id} request={r} viewerRole="office_incharge">
               {activeAction?.id === r.id ? (
                 <div style={actionPanel}>
-                  <div style={{
-                    ...sigPanel,
-                    borderColor: activeAction.type === 'approve' ? '#16a34a' : '#dc3545',
-                  }}>
+                  {activeAction.type !== 'hold' && (
                     <div style={{
-                      fontSize: 11, fontWeight: 700, letterSpacing: 1, marginBottom: 8,
-                      color: activeAction.type === 'approve' ? '#166534' : '#991b1b'
+                      ...sigPanel,
+                      borderColor: activeAction.type === 'approve' ? '#16a34a' : '#dc3545',
                     }}>
-                      {activeAction.type === 'approve'
-                        ? 'AUTHORIZING SIGNATURE'
-                        : 'SIGNATURE ON FILE (REJECTING)'}
-                    </div>
-                    {mySigUrl ? (
-                      <>
-                        <img src={mySigUrl} alt="my signature"
-                          style={{ maxHeight: 70, display: 'block', marginBottom: 8 }} />
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0b2e6f' }}>
-                          {user?.fullName}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#64748b' }}>
-                          {user?.staffId} · {new Date().toLocaleString()}
-                        </div>
-                      </>
-                    ) : (
-                      <div style={{ color: '#dc3545', fontSize: 13, fontWeight: 600 }}>
-                        ⚠️ No signature on file.
+                      <div style={{
+                        fontSize: 11, fontWeight: 700, letterSpacing: 1, marginBottom: 8,
+                        color: activeAction.type === 'approve' ? '#166534' : '#991b1b'
+                      }}>
+                        {activeAction.type === 'approve'
+                          ? 'AUTHORIZING SIGNATURE'
+                          : 'SIGNATURE ON FILE (REJECTING)'}
                       </div>
-                    )}
-                  </div>
+                      {mySigUrl ? (
+                        <>
+                          <img src={mySigUrl} alt="my signature"
+                            style={{ maxHeight: 70, display: 'block', marginBottom: 8 }} />
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#0b2e6f' }}>
+                            {user?.fullName}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#64748b' }}>
+                            {user?.staffId} · {formatNepalDateTime(new Date())} (NPT)
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ color: '#dc3545', fontSize: 13, fontWeight: 600 }}>
+                          ⚠️ No signature on file.
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                  {activeAction.type === 'approve' ? (
+                  {activeAction.type === 'approve' && (
                     <>
                       <label style={lbl}>Remarks (optional)</label>
                       <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
@@ -166,7 +191,9 @@ function PendingApprovals() {
                         <button onClick={closeAction} style={btn('#94a3b8')}>Cancel</button>
                       </div>
                     </>
-                  ) : (
+                  )}
+
+                  {activeAction.type === 'reject' && (
                     <>
                       <label style={lbl}>Rejection Reason</label>
                       <textarea rows={3} value={rejectionReason}
@@ -182,6 +209,34 @@ function PendingApprovals() {
                       </div>
                     </>
                   )}
+
+                  {activeAction.type === 'hold' && (
+                    <>
+                      <div style={{
+                        padding: 12, background: '#fffbeb',
+                        border: '1px solid #fde68a', borderRadius: 8,
+                        fontSize: 12, color: '#78350f', marginBottom: 14,
+                      }}>
+                        ⏸ Placing on hold will notify all administrators. If no decision is
+                        made by the hold time, the request will be <strong>automatically rejected</strong>.
+                      </div>
+                      <label style={lbl}>Hold Decision Until (Nepal Time)</label>
+                      <input type="datetime-local" value={holdUntilLocal}
+                        onChange={e => setHoldUntilLocal(e.target.value)}
+                        style={inp} />
+                      <label style={lbl}>Reason for Hold</label>
+                      <textarea rows={3} value={holdReason}
+                        onChange={e => setHoldReason(e.target.value)}
+                        placeholder="e.g. Need to check department staffing before deciding"
+                        style={{ ...inp, resize: 'vertical' }} />
+                      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                        <button onClick={() => submitHold(r.id)} style={btn('#f59e0b')}>
+                          ⏸ Place On Hold
+                        </button>
+                        <button onClick={closeAction} style={btn('#94a3b8')}>Cancel</button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : !profile?.hasSignature ? (
                 <div style={warningBox}>
@@ -191,9 +246,10 @@ function PendingApprovals() {
                   </Link>
                 </div>
               ) : (
-                <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-                  <button onClick={() => openApprove(r)} style={btn('#16a34a')}>Approve</button>
-                  <button onClick={() => openReject(r)} style={btn('#dc3545')}>Reject</button>
+                <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+                  <button onClick={() => openApprove(r)} style={btn('#16a34a')}>✓ Approve</button>
+                  <button onClick={() => openReject(r)} style={btn('#dc3545')}>✕ Reject</button>
+                  <button onClick={() => openHold(r)} style={btn('#f59e0b')}>⏸ Put On Hold</button>
                 </div>
               )}
             </RequestDetail>
@@ -246,7 +302,7 @@ function EmptyState({ recent }) {
             <div>
               <div style={{ fontWeight: 600, color: '#0b2e6f', fontSize: 13 }}>{r.staffName}</div>
               <div style={{ fontSize: 11, color: '#64748b' }}>
-                {r.leaveType?.replace(/_/g, ' ')} · {new Date(r.officeInchargeApprovedAt).toLocaleDateString()}
+                {r.leaveType?.replace(/_/g, ' ')} · {formatNepalDate(r.officeInchargeApprovedAt)}
               </div>
             </div>
             <span style={{

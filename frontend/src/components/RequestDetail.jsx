@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getSignatureByFilename } from '../services/authService';
+import { formatNepalDateTime } from '../utils/date';
+import { leaveTypeLabel } from '../utils/leaveTypes';
 import PrintableRequest from './PrintableRequest';
 
 export default function RequestDetail({ request, viewerRole, children }) {
@@ -22,12 +24,9 @@ export default function RequestDetail({ request, viewerRole, children }) {
     })();
   }, [request.staffSignatureImage, request.sectionHeadSignatureImage, request.officeInchargeSignatureImage]);
 
-  const fmt = (v) => v ? new Date(v).toLocaleString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  }) : '—';
-
+  const fmt = (v) => formatNepalDateTime(v);
   const statusInfo = statusMeta(request.status);
+  const leaveTypeText = request.leaveTypeLabel || leaveTypeLabel(request.leaveType);
 
   return (
     <div style={{
@@ -35,12 +34,12 @@ export default function RequestDetail({ request, viewerRole, children }) {
       boxShadow: '0 4px 16px rgba(0,0,0,.06)',
       border: '1px solid #e5edf8', overflow: 'hidden',
     }}>
-      {/* ── HEADER ── */}
       <div style={{
         padding: '16px 20px',
         background: statusInfo.headerBg,
         borderBottom: `1px solid ${statusInfo.headerBorder}`,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        flexWrap: 'wrap', gap: 8,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
@@ -53,15 +52,21 @@ export default function RequestDetail({ request, viewerRole, children }) {
           </div>
           <div>
             <div style={{ fontWeight: 700, color: '#0b2e6f', fontSize: 15 }}>
-              {request.leaveType?.replace(/_/g, ' ')}
+              {leaveTypeText}
             </div>
+            {request.customLeaveType && (
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, fontStyle: 'italic' }}>
+                “{request.customLeaveType}”
+              </div>
+            )}
             <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'monospace', marginTop: 2 }}>
               {request.referenceNumber || `LR-${String(request.id).padStart(6, '0')}`}
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <CategoryBadge category={request.category} />
           <StatusBadge status={request.status} />
           <button onClick={() => setShowPrint(true)} style={{
             padding: '6px 12px', background: '#fff', border: '1px solid #cbd5e1',
@@ -71,7 +76,41 @@ export default function RequestDetail({ request, viewerRole, children }) {
         </div>
       </div>
 
-      {/* ── SUMMARY ── */}
+      {request.status === 'ON_HOLD' && (
+        <div style={{
+          margin: '14px 20px 0', padding: 14,
+          background: '#fffbeb', border: '1px solid #fde68a',
+          borderRadius: 10, borderLeft: '3px solid #f59e0b',
+        }}>
+          <div style={{
+            fontWeight: 700, color: '#92400e', fontSize: 12,
+            letterSpacing: 0.5, marginBottom: 4,
+          }}>
+            ⏸ ON HOLD — DECISION PENDING
+          </div>
+          <div style={{ fontSize: 13, color: '#78350f', lineHeight: 1.6 }}>
+            Held by <strong>{request.heldByName || '—'}</strong>
+            {request.heldByRole ? ` (${request.heldByRole.replace('_', ' ')})` : ''}
+            {request.heldAt ? ` at ${fmt(request.heldAt)}` : ''}.
+          </div>
+          {request.holdUntil && (
+            <div style={{ fontSize: 13, color: '#78350f', marginTop: 4 }}>
+              Decision required by <strong>{fmt(request.holdUntil)}</strong> (NPT).
+              If no decision is made, the request will be <strong>automatically rejected</strong>.
+            </div>
+          )}
+          {request.holdReason && (
+            <div style={{
+              marginTop: 8, fontSize: 12, color: '#78350f',
+              fontStyle: 'italic', paddingLeft: 10,
+              borderLeft: '2px solid #fcd34d',
+            }}>
+              Reason: {request.holdReason}
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ padding: '16px 20px' }}>
         <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.6 }}>
           <div style={{ marginBottom: 8 }}>
@@ -88,11 +127,15 @@ export default function RequestDetail({ request, viewerRole, children }) {
             <span>{fmt(request.leaveStartTime)}</span>
             <span style={{ color: '#94a3b8' }}>→</span>
             <span>{fmt(request.returnDateTime)}</span>
+            {request.durationDays && (
+              <span style={{ marginLeft: 'auto', color: '#64748b', fontSize: 12 }}>
+                {request.durationDays} day{request.durationDays === 1 ? '' : 's'}
+              </span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── TIMELINE ── */}
       <div style={{ padding: '4px 20px 20px' }}>
         <TimelineRow
           dotColor="#0d6efd"
@@ -139,13 +182,24 @@ export default function RequestDetail({ request, viewerRole, children }) {
           />
         )}
 
+        {request.status === 'ON_HOLD' && (
+          <TimelineRow
+            dotColor="#f59e0b"
+            title="On Hold"
+            name={request.heldByName || '—'}
+            sub={request.heldByRole?.replace('_', ' ')}
+            when={`Held ${fmt(request.heldAt)} · decide by ${fmt(request.holdUntil)}`}
+            notes={request.holdReason}
+            sigUrl={null}
+          />
+        )}
+
         {request.status === 'CANCELLED' && (
           <TimelineRow dotColor="#94a3b8" title="Cancelled" name="Withdrawn by applicant"
             sub="" when={fmt(request.updatedAt || request.createdAt)} sigUrl={null} muted />
         )}
       </div>
 
-      {/* ── REJECTION REASON ── */}
       {request.rejectionReason && (
         <div style={{
           margin: '0 20px 20px', padding: 14, background: '#fef2f2',
@@ -164,8 +218,6 @@ export default function RequestDetail({ request, viewerRole, children }) {
     </div>
   );
 }
-
-/* ─────────────────────────────────── */
 
 function TimelineRow({ dotColor, title, name, sub, when, notes, sigUrl, muted }) {
   return (
@@ -196,7 +248,7 @@ function TimelineRow({ dotColor, title, name, sub, when, notes, sigUrl, muted })
                 borderLeft: '2px solid #cbd5e1', borderRadius: 4,
                 fontSize: 12, color: '#334155', fontStyle: 'italic',
               }}>
-                “{notes}”
+                "{notes}"
               </div>
             )}
           </div>
@@ -215,17 +267,32 @@ function TimelineRow({ dotColor, title, name, sub, when, notes, sigUrl, muted })
   );
 }
 
+function CategoryBadge({ category }) {
+  if (!category) return null;
+  const isOffice = category === 'OFFICE_WORK';
+  return (
+    <span style={{
+      padding: '5px 10px', borderRadius: 20, fontSize: 10, fontWeight: 800,
+      background: isOffice ? '#dbeafe' : '#ede9fe',
+      color: isOffice ? '#1e40af' : '#6b21a8',
+      letterSpacing: 0.5, whiteSpace: 'nowrap',
+    }}>
+      {isOffice ? '💼 OFFICE WORK' : '🏖️ PERSONAL'}
+    </span>
+  );
+}
+
 function StatusBadge({ status }) {
   const m = {
     PENDING_SECTION_HEAD:    { bg: '#fef3c7', fg: '#92400e', label: 'PENDING · SECTION HEAD' },
     PENDING_OFFICE_INCHARGE: { bg: '#dbeafe', fg: '#1e40af', label: 'PENDING · OFFICE IN-CHARGE' },
     PENDING_SELF_APPROVAL:   { bg: '#e0e7ff', fg: '#3730a3', label: 'PENDING · SELF' },
+    ON_HOLD:                 { bg: '#fef3c7', fg: '#92400e', label: '⏸ ON HOLD' },
     APPROVED:                { bg: '#d1fae5', fg: '#065f46', label: 'APPROVED' },
     REJECTED:                { bg: '#fee2e2', fg: '#991b1b', label: 'REJECTED' },
     CANCELLED:               { bg: '#e5e7eb', fg: '#374151', label: 'CANCELLED' },
-    ON_HOLD:                 { bg: '#f1f5f9', fg: '#475569', label: 'ON HOLD' },
   };
-  const c = m[status] || m.ON_HOLD;
+  const c = m[status] || { bg: '#f1f5f9', fg: '#475569', label: status || '—' };
   return (
     <span style={{
       padding: '5px 12px', borderRadius: 20, fontSize: 10, fontWeight: 800,
@@ -240,6 +307,8 @@ function statusMeta(status) {
   if (status === 'CANCELLED') return { headerBg: '#f8fafc', headerBorder: '#e2e8f0' };
   if (status === 'PENDING_SECTION_HEAD') return { headerBg: '#fffbeb', headerBorder: '#fde68a' };
   if (status === 'PENDING_OFFICE_INCHARGE') return { headerBg: '#eff6ff', headerBorder: '#bfdbfe' };
+  if (status === 'PENDING_SELF_APPROVAL') return { headerBg: '#eef2ff', headerBorder: '#c7d2fe' };
+  if (status === 'ON_HOLD') return { headerBg: '#fffbeb', headerBorder: '#fde68a' };
   return { headerBg: '#f8fafc', headerBorder: '#e2e8f0' };
 }
 
@@ -247,6 +316,9 @@ function iconForLeaveType(type) {
   const m = {
     FULL_DAY: '🗓️', HALF_DAY: '⏱️', AFTER_HOUR: '🌆',
     MULTI_DAY: '📆', SICK: '🤒', CASUAL: '☕', EMERGENCY: '🚨',
+    PERSONAL_OTHER: '✍️',
+    FIELD_VISIT: '🚗', OFFICIAL_MEETING: '🤝',
+    TRAINING: '🎓', CLIENT_VISIT: '👥', OFFICE_OTHER: '✍️',
   };
   return m[type] || '📋';
 }

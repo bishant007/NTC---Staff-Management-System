@@ -2,12 +2,16 @@ package com.ntc.backend.controller;
 
 import com.ntc.backend.dto.*;
 import com.ntc.backend.entity.Staff;
+import com.ntc.backend.enums.AuditAction;
 import com.ntc.backend.enums.RequestStatus;
 import com.ntc.backend.enums.StaffRole;
 import com.ntc.backend.repository.LeaveRequestRepository;
 import com.ntc.backend.repository.StaffRepository;
+import com.ntc.backend.security.JwtUtil;
+import com.ntc.backend.service.AuditLogService;
 import com.ntc.backend.service.EmailService;
 import com.ntc.backend.service.LeaveRequestService;
+import com.ntc.backend.service.SessionService;
 import com.ntc.backend.service.StaffService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +35,9 @@ public class AdminController {
     @Autowired private EmailService emailService;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private com.ntc.backend.repository.AdminRepository adminRepository;
+    @Autowired private SessionService sessionService;
+    @Autowired private JwtUtil jwtUtil;
+    @Autowired private AuditLogService auditLogService;
 
     @PostMapping("/staff")
     public ApiResponse createStaff(@Valid @RequestBody StaffCreateDTO dto) {
@@ -45,9 +52,28 @@ public class AdminController {
     @GetMapping("/staff")
     @Transactional(readOnly = true)
     public List<StaffResponseDTO> getAllStaff(
-            @RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive) {
+            @RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive,
+            @RequestParam(name = "role", required = false) String role,
+            @RequestParam(name = "status", required = false) String status) {
+
+        StaffRole roleFilter = null;
+        if (role != null && !role.isBlank() && !role.equalsIgnoreCase("ALL")) {
+            try {
+                roleFilter = StaffRole.valueOf(role.trim().toUpperCase());
+            } catch (IllegalArgumentException ignored) { }
+        }
+
+        final StaffRole finalRoleFilter = roleFilter;
+        final String statusNorm = (status == null) ? null : status.trim().toLowerCase();
+
         return staffRepository.findAll().stream()
-                .filter(s -> includeInactive || s.isActive())
+                .filter(s -> {
+                    if ("inactive".equals(statusNorm)) return !s.isActive();
+                    if ("active".equals(statusNorm))   return s.isActive();
+                    if ("all".equals(statusNorm))      return true;
+                    return includeInactive || s.isActive();
+                })
+                .filter(s -> finalRoleFilter == null || s.getRole() == finalRoleFilter)
                 .map(StaffResponseDTO::from)
                 .collect(Collectors.toList());
     }
@@ -87,17 +113,30 @@ public class AdminController {
                             .orElseThrow(() -> new RuntimeException("Office Incharge not found")));
         }
 
+        boolean passwordReset = false;
         if (body.get("newPassword") != null && !((String) body.get("newPassword")).isBlank()) {
             s.setPassword(passwordEncoder.encode((String) body.get("newPassword")));
             s.setFirstLogin(true);
+            passwordReset = true;
         }
 
         staffRepository.save(s);
+
+        if (passwordReset) {
+            try {
+                sessionService.revokeAllForUser("STAFF", s.getId(), "PASSWORD_RESET_BY_ADMIN");
+            } catch (Exception ignored) {}
+            try {
+                auditLogService.record(null, AuditAction.PASSWORD_RESET_BY_ADMIN,
+                        "STAFF", s.getStaffId(), s.getFullName(),
+                        "Admin reset password");
+            } catch (Exception ignored) {}
+        }
+
         return new ApiResponse(true, "Staff updated", StaffResponseDTO.from(s));
     }
 
     /* ---------------- Delete / Deactivate / Activate ---------------- */
-
     @GetMapping("/staff/{staffId}/delete-check")
     public ApiResponse checkDelete(@PathVariable String staffId, Authentication auth) {
         try {
@@ -139,14 +178,14 @@ public class AdminController {
     }
 
     /* ---------------- Other endpoints ---------------- */
-
     @GetMapping("/requests")
     public List<LeaveRequestResponseDTO> getRequests(@RequestParam(required = false) RequestStatus status) {
         return leaveRequestService.getAllRequests(status);
     }
 
     @PostMapping("/change-password")
-    public ApiResponse changePassword(@RequestBody Map<String, String> body) {
+    public ApiResponse changePassword(@RequestBody Map<String, String> body,
+                                      @RequestHeader(value = "Authorization", required = false) String authHeader) {
         String email = body.get("email");
         String oldPw = body.get("oldPassword");
         String newPw = body.get("newPassword");
@@ -163,6 +202,30 @@ public class AdminController {
         }
         admin.setPassword(passwordEncoder.encode(newPw));
         adminRepository.save(admin);
+
+        try {
+            auditLogService.record(admin.getUsername(), AuditAction.PASSWORD_CHANGED,
+                    "ADMIN", admin.getAdminId(), admin.getFullName(),
+                    "Admin changed own password");
+        } catch (Exception ignored) {}
+
+        try {
+            String currentSessionId = null;
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                try { currentSessionId = jwtUtil.getSessionId(authHeader.substring(7)); }
+                catch (Exception ignored) {}
+            }
+            if (currentSessionId != null) {
+                int n = sessionService.revokeOtherSessions(
+                        "ADMIN", admin.getId(), currentSessionId, "PASSWORD_CHANGED");
+                System.out.println("🔐 Admin password changed — revoked " + n + " other session(s)");
+            } else {
+                sessionService.revokeAllForUser("ADMIN", admin.getId(), "PASSWORD_CHANGED");
+            }
+        } catch (Exception e) {
+            System.out.println("Warning: could not revoke admin sessions — " + e.getMessage());
+        }
+
         return new ApiResponse(true, "Password updated successfully");
     }
 }

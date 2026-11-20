@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { createStaff, getAllStaff, updateStaff, adminStaffApi } from '../../services/authService';
 import AdminSidebar from '../../components/AdminSidebar';
@@ -7,9 +8,13 @@ import ConfirmDeleteModal from '../../components/ConfirmDeleteModal';
 
 function StaffManagement() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const roleFilter = searchParams.get('role') || 'ALL';
+  const statusFilter = searchParams.get('status') || 'active';
+
   const [activeTab, setActiveTab] = useState('list');
   const [allStaff, setAllStaff] = useState([]);
-  const [showInactive, setShowInactive] = useState(false);
   const [sectionHeads, setSectionHeads] = useState([]);
   const [officeIncharges, setOfficeIncharges] = useState([]);
   const [editing, setEditing] = useState(null);
@@ -26,10 +31,11 @@ function StaffManagement() {
   const [message, setMessage] = useState('');
   const [success, setSuccess] = useState(false);
 
+  // Load ALL staff once — we filter client-side based on URL params
   const loadStaff = async () => {
     setFetchLoading(true);
     try {
-      const res = await getAllStaff(showInactive);
+      const res = await getAllStaff(true); // includeInactive = true → fetch everyone
       const list = res.data || [];
       setAllStaff(list);
       setSectionHeads(list.filter(s => s.role === 'SECTION_HEAD' && s.active));
@@ -38,7 +44,26 @@ function StaffManagement() {
     finally { setFetchLoading(false); }
   };
 
-  useEffect(() => { loadStaff(); /* eslint-disable-next-line */ }, [showInactive]);
+  useEffect(() => { loadStaff(); /* eslint-disable-next-line */ }, []);
+
+  // Push a filter value into the URL
+  const setFilter = (key, value) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value || value === 'ALL' && key === 'role') next.delete(key);
+    else if (value === 'active' && key === 'status') next.delete(key);
+    else next.set(key, value);
+    setSearchParams(next);
+  };
+
+  // Client-side filter
+  const filteredStaff = useMemo(() => {
+    return allStaff.filter(s => {
+      if (roleFilter !== 'ALL' && s.role !== roleFilter) return false;
+      if (statusFilter === 'active' && !s.active) return false;
+      if (statusFilter === 'inactive' && s.active) return false;
+      return true;
+    });
+  }, [allStaff, roleFilter, statusFilter]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -97,6 +122,19 @@ function StaffManagement() {
     }
   };
 
+  const roleLabel = {
+    ALL: 'All Users',
+    STAFF: 'Staff',
+    SECTION_HEAD: 'Section Heads',
+    OFFICE_INCHARGE: 'Office In-Charge',
+  }[roleFilter] || 'Users';
+
+  const statusLabel = {
+    active: 'Active',
+    inactive: 'Inactive',
+    all: 'All statuses',
+  }[statusFilter] || '';
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#eef4ff' }}>
       <AdminSidebar />
@@ -106,20 +144,63 @@ function StaffManagement() {
           Create accounts, assign roles, and manage reporting heads.
         </p>
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 24, marginBottom: 20, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 24, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
           <TabBtn active={activeTab === 'list'} onClick={() => setActiveTab('list')}>
-            Staff List ({allStaff.length})
+            {roleLabel} ({filteredStaff.length})
           </TabBtn>
           <TabBtn active={activeTab === 'create'} onClick={() => setActiveTab('create')}>
             + Create Account
           </TabBtn>
-
-          <label style={{ marginLeft: 'auto', fontSize: 13, color: '#334155', fontWeight: 600, cursor: 'pointer' }}>
-            <input type="checkbox" checked={showInactive}
-              onChange={e => setShowInactive(e.target.checked)} style={{ marginRight: 6 }} />
-            Show inactive
-          </label>
         </div>
+
+        {/* Filter bar */}
+        {activeTab === 'list' && (
+          <div style={{
+            background: '#fff', padding: 14, borderRadius: 12, marginBottom: 18,
+            display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap',
+            boxShadow: '0 2px 8px rgba(0,0,0,.04)',
+          }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <label style={filterLabel}>Role:</label>
+              <select
+                value={roleFilter}
+                onChange={e => setFilter('role', e.target.value)}
+                style={filterSelect}>
+                <option value="ALL">All Roles</option>
+                <option value="STAFF">Staff</option>
+                <option value="SECTION_HEAD">Section Head</option>
+                <option value="OFFICE_INCHARGE">Office In-Charge</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <label style={filterLabel}>Status:</label>
+              <select
+                value={statusFilter}
+                onChange={e => setFilter('status', e.target.value)}
+                style={filterSelect}>
+                <option value="active">Active only</option>
+                <option value="inactive">Inactive only</option>
+                <option value="all">All</option>
+              </select>
+            </div>
+
+            {(roleFilter !== 'ALL' || statusFilter !== 'active') && (
+              <button
+                onClick={() => setSearchParams(new URLSearchParams())}
+                style={{
+                  padding: '8px 14px', background: '#f1f5f9', border: '1px solid #cbd5e1',
+                  borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#334155',
+                }}>
+                Clear filters
+              </button>
+            )}
+
+            <div style={{ marginLeft: 'auto', fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+              Showing <span style={{ color: '#0b2e6f' }}>{filteredStaff.length}</span> of {allStaff.length} accounts
+            </div>
+          </div>
+        )}
 
         {message && (
           <p style={{ color: success ? 'green' : '#dc3545', fontWeight: 600, marginBottom: 20 }}>
@@ -129,9 +210,11 @@ function StaffManagement() {
 
         {activeTab === 'list' && (
           <div style={{ background: '#fff', padding: 24, borderRadius: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-            <h2 style={{ marginTop: 0 }}>All Accounts</h2>
+            <h2 style={{ marginTop: 0 }}>
+              {roleLabel} {statusLabel && `· ${statusLabel}`}
+            </h2>
             {fetchLoading ? <p>Loading...</p> :
-              allStaff.length === 0 ? <p style={{ color: '#888' }}>No accounts created yet.</p> :
+              filteredStaff.length === 0 ? <p style={{ color: '#888' }}>No accounts match the current filters.</p> :
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                   <thead>
@@ -146,7 +229,7 @@ function StaffManagement() {
                     </tr>
                   </thead>
                   <tbody>
-                    {allStaff.map(s => (
+                    {filteredStaff.map(s => (
                       <tr key={s.id} style={{
                         borderBottom: '1px solid #eee',
                         opacity: s.active ? 1 : 0.55,
@@ -238,11 +321,11 @@ function StaffManagement() {
 
               {formData.role === 'STAFF' && (
                 <>
-                  <h3 style={sectionH}>Reporting Chain</h3>
+                  <h3 style={sectionH}>Reporting Chain (optional — can be assigned later)</h3>
                   <div style={grid2}>
-                    <Field label="Section Head *">
-                      <select name="sectionHeadId" value={formData.sectionHeadId} onChange={handleChange} required style={inp}>
-                        <option value="">-- Select Section Head --</option>
+                    <Field label="Section Head">
+                      <select name="sectionHeadId" value={formData.sectionHeadId} onChange={handleChange} style={inp}>
+                        <option value="">-- None --</option>
                         {sectionHeads.map(h => (
                           <option key={h.staffId} value={h.staffId}>
                             {h.fullName} ({h.username}) — {h.department}
@@ -250,9 +333,9 @@ function StaffManagement() {
                         ))}
                       </select>
                     </Field>
-                    <Field label="Office Incharge *">
-                      <select name="officeInchargeId" value={formData.officeInchargeId} onChange={handleChange} required style={inp}>
-                        <option value="">-- Select Office Incharge --</option>
+                    <Field label="Office Incharge">
+                      <select name="officeInchargeId" value={formData.officeInchargeId} onChange={handleChange} style={inp}>
+                        <option value="">-- None --</option>
                         {officeIncharges.map(h => (
                           <option key={h.staffId} value={h.staffId}>
                             {h.fullName} ({h.username}) — {h.department}
@@ -266,10 +349,10 @@ function StaffManagement() {
 
               {formData.role === 'SECTION_HEAD' && (
                 <>
-                  <h3 style={sectionH}>Reporting Chain</h3>
-                  <Field label="Office Incharge *">
-                    <select name="officeInchargeId" value={formData.officeInchargeId} onChange={handleChange} required style={inp}>
-                      <option value="">-- Select Office Incharge --</option>
+                  <h3 style={sectionH}>Reporting Chain (optional)</h3>
+                  <Field label="Office Incharge">
+                    <select name="officeInchargeId" value={formData.officeInchargeId} onChange={handleChange} style={inp}>
+                      <option value="">-- None --</option>
                       {officeIncharges.map(h => (
                         <option key={h.staffId} value={h.staffId}>
                           {h.fullName} ({h.username}) — {h.department}
@@ -311,23 +394,6 @@ function StaffManagement() {
         {viewing && (
           <StaffDetailModal
             staff={viewing}
-            canManage={true}
-            onDelete={(s) => { setViewing(null); setDeleting(s); }}
-            onDeactivate={async (s) => {
-              if (!window.confirm(`Deactivate ${s.fullName}?`)) return;
-              try {
-                const res = await adminStaffApi.deactivate(s.staffId);
-                if (res.data.success) { setViewing(null); loadStaff(); }
-                else alert(res.data.message);
-              } catch (err) { alert(err.response?.data?.message || err.message); }
-            }}
-            onActivate={async (s) => {
-              try {
-                const res = await adminStaffApi.activate(s.staffId);
-                if (res.data.success) { setViewing(null); loadStaff(); }
-                else alert(res.data.message);
-              } catch (err) { alert(err.response?.data?.message || err.message); }
-            }}
             onClose={() => setViewing(null)}
           />
         )}
@@ -614,5 +680,10 @@ const td = { padding: '10px', color: '#0b2e6f' };
 const inp = { width: '100%', padding: 10, borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' };
 const grid2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 8 };
 const sectionH = { marginTop: 20, marginBottom: 12, fontSize: 15, color: '#0b2e6f' };
+const filterLabel = { fontSize: 13, fontWeight: 600, color: '#334155' };
+const filterSelect = {
+  padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1',
+  fontSize: 13, background: '#fff', cursor: 'pointer',
+};
 
 export default StaffManagement;

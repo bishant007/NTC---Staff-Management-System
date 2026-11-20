@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from '../../components/Sidebar';
 import { getOfficeInchargeRequests, getOfficeInchargeHistory, getMySectionHeads } from '../../services/authService';
+import { formatNepalDate } from '../../utils/date';
 
 function OfficeInchargeDashboard() {
   const { user } = useAuth();
@@ -29,10 +30,13 @@ function OfficeInchargeDashboard() {
 
   if (loading) return <div style={{ marginLeft: 250, padding: 30 }}>Loading...</div>;
 
-  const today = new Date().toDateString();
-  const approvedToday = history.filter(r =>
-    r.officeInchargeApprovedAt && new Date(r.officeInchargeApprovedAt).toDateString() === today
-  ).length;
+  // "Today" measured in Nepal time, not browser-local.
+  const todayNPT = new Date().toLocaleDateString('en-GB', { timeZone: 'Asia/Kathmandu' });
+  const approvedToday = history.filter(r => {
+    if (!r.officeInchargeApprovedAt) return false;
+    const d = new Date(r.officeInchargeApprovedAt).toLocaleDateString('en-GB', { timeZone: 'Asia/Kathmandu' });
+    return d === todayNPT;
+  }).length;
   const acted = history.filter(r => r.officeInchargeApprovedAt).length;
   const rejected = history.filter(r => r.status === 'REJECTED').length;
   const approved = history.filter(r => r.status === 'APPROVED').length;
@@ -104,6 +108,9 @@ function OfficeInchargeDashboard() {
                   <div style={{ fontWeight: 600, color: '#0b2e6f', fontSize: 14 }}>{r.staffName}</div>
                   <div style={{ fontSize: 12, color: '#64748b' }}>
                     {r.leaveType?.replace(/_/g, ' ')} · {r.referenceNumber}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                    {formatNepalDate(r.officeInchargeApprovedAt)}
                   </div>
                 </div>
                 <span style={{

@@ -86,7 +86,7 @@ function Login() {
 
             <label style={lbl}>Username or Staff ID</label>
             <input value={username} onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. bishant.staff@ntc.com or NTC-10001" style={inp(!!errors.username)} autoFocus />
+              style={inp(!!errors.username)} autoFocus />
             {errors.username && <p style={err}>{errors.username}</p>}
             {!errors.username && <div style={{ height: 16 }} />}
 

@@ -12,6 +12,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -49,6 +51,27 @@ public class OfficeInchargeController {
         return new ApiResponse(true, "Request rejected");
     }
 
+    /** NEW — place a pending request on hold. Body: { holdUntil: ISO-8601 string, reason: string } */
+    @PutMapping("/requests/{id}/hold")
+    public ApiResponse hold(@PathVariable Long id, @RequestBody Map<String, String> body, Authentication auth) {
+        try {
+            String holdUntilStr = body.get("holdUntil");
+            String reason = body.get("reason");
+            if (holdUntilStr == null || holdUntilStr.isBlank())
+                return new ApiResponse(false, "holdUntil is required (ISO-8601 datetime)");
+            Instant holdUntil;
+            try {
+                holdUntil = Instant.parse(holdUntilStr);
+            } catch (DateTimeParseException e) {
+                return new ApiResponse(false, "Invalid holdUntil format. Expected ISO-8601 (e.g. 2026-10-12T06:45:00Z)");
+            }
+            LeaveRequestResponseDTO saved = leaveRequestService.holdRequest(id, auth.getName(), holdUntil, reason);
+            return new ApiResponse(true, "Request placed on hold", saved);
+        } catch (RuntimeException e) {
+            return new ApiResponse(false, e.getMessage());
+        }
+    }
+
     @PostMapping("/staff")
     public ApiResponse createStaff(@Valid @RequestBody StaffCreateDTO dto, Authentication auth) {
         Map<String, Object> r = staffService.createStaffWithCredentials(dto, auth.getName());
@@ -73,47 +96,5 @@ public class OfficeInchargeController {
         return staffRepository.findByOfficeInchargeId(oi.getId()).stream()
                 .filter(s -> s.getRole() == com.ntc.backend.enums.StaffRole.STAFF)
                 .map(StaffResponseDTO::from).collect(Collectors.toList());
-    }
-
-    /* ---------------- Delete / Deactivate / Activate ---------------- */
-
-    @GetMapping("/staff/{staffId}/delete-check")
-    public ApiResponse checkDelete(@PathVariable String staffId, Authentication auth) {
-        try {
-            Map<String, Object> info = staffService.checkDeleteEligibility(staffId, auth.getName());
-            return new ApiResponse(true, "OK", info);
-        } catch (RuntimeException e) {
-            return new ApiResponse(false, e.getMessage());
-        }
-    }
-
-    @DeleteMapping("/staff/{staffId}")
-    public ApiResponse hardDelete(@PathVariable String staffId, Authentication auth) {
-        try {
-            staffService.deleteStaff(staffId, auth.getName());
-            return new ApiResponse(true, "User permanently deleted");
-        } catch (RuntimeException e) {
-            return new ApiResponse(false, e.getMessage());
-        }
-    }
-
-    @PutMapping("/staff/{staffId}/deactivate")
-    public ApiResponse deactivate(@PathVariable String staffId, Authentication auth) {
-        try {
-            staffService.deactivateStaff(staffId, auth.getName());
-            return new ApiResponse(true, "User deactivated");
-        } catch (RuntimeException e) {
-            return new ApiResponse(false, e.getMessage());
-        }
-    }
-
-    @PutMapping("/staff/{staffId}/activate")
-    public ApiResponse activate(@PathVariable String staffId, Authentication auth) {
-        try {
-            staffService.activateStaff(staffId, auth.getName());
-            return new ApiResponse(true, "User reactivated");
-        } catch (RuntimeException e) {
-            return new ApiResponse(false, e.getMessage());
-        }
     }
 }

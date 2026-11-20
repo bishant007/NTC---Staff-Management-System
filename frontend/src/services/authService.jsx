@@ -4,14 +4,42 @@ import api from './api';
 export const unifiedLogin = (username, password) =>
   api.post('/auth/login', { username, password });
 
+export const logoutSession = () => api.post('/auth/logout');
+export const refreshSession = (refreshToken) =>
+  api.post('/auth/refresh', { refreshToken });
+
+// ---- Sessions ----
+export const listMySessions = () => api.get('/auth/sessions');
+export const revokeSession = (id) => api.delete(`/auth/sessions/${id}`);
+export const revokeOtherSessions = () => api.delete('/auth/sessions/others');
+
+// ---- Audit Logs ----
+export const getAuditLogs = (params) => api.get('/audit-logs', { params });
+
 // ---- Admin ----
 export const createStaff = (data) => api.post('/admin/staff', data);
-export const getAllStaff = (includeInactive = false) =>
-  api.get('/admin/staff', { params: { includeInactive } });
+
+export const getAllStaff = (opts = {}) => {
+  let params = {};
+  if (typeof opts === 'boolean') {
+    params = { includeInactive: opts };
+  } else {
+    const { includeInactive = false, role, status } = opts || {};
+    params = { includeInactive };
+    if (role) params.role = role;
+    if (status) params.status = status;
+  }
+  return api.get('/admin/staff', { params });
+};
+
 export const getStaffByStaffId = (id) => api.get(`/admin/staff/${id}`);
 export const updateStaff = (id, data) => api.put(`/admin/staff/${id}`, data);
-export const getLeaveRequests = (status) =>
-  api.get('/admin/requests', { params: { status } });
+
+export const getLeaveRequests = (opts) => {
+  const status = typeof opts === 'string' ? opts : opts?.status;
+  return api.get('/admin/requests', { params: status ? { status } : {} });
+};
+
 export const getDashboardStats = () => api.get('/dashboard');
 
 // ---- Staff ----
@@ -29,6 +57,8 @@ export const approveBySectionHead = (id, signature, notes = '') =>
   api.put(`/section-head/requests/${id}/approve`, { requestId: id, signature, notes });
 export const rejectBySectionHead = (id, signature, reason) =>
   api.put(`/section-head/requests/${id}/reject`, { requestId: id, signature, rejectionReason: reason });
+export const holdBySectionHead = (id, holdUntilIso, reason) =>
+  api.put(`/section-head/requests/${id}/hold`, { holdUntil: holdUntilIso, reason });
 export const createStaffBySectionHead = (data) => api.post('/section-head/staff', data);
 export const getMyStaff = () => api.get('/section-head/my-staff');
 
@@ -39,6 +69,8 @@ export const approveByOfficeIncharge = (id, signature, notes = '') =>
   api.put(`/office-incharge/requests/${id}/approve`, { requestId: id, signature, notes });
 export const rejectByOfficeIncharge = (id, signature, reason) =>
   api.put(`/office-incharge/requests/${id}/reject`, { requestId: id, signature, rejectionReason: reason });
+export const holdByOfficeIncharge = (id, holdUntilIso, reason) =>
+  api.put(`/office-incharge/requests/${id}/hold`, { holdUntil: holdUntilIso, reason });
 export const createStaffByOfficeIncharge = (data) => api.post('/office-incharge/staff', data);
 export const getMySectionHeads = () => api.get('/office-incharge/my-section-heads');
 export const getOfficeInchargeStaff = () => api.get('/office-incharge/my-staff');

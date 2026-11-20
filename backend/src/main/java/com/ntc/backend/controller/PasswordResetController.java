@@ -4,8 +4,10 @@ import com.ntc.backend.dto.ApiResponse;
 import com.ntc.backend.dto.PasswordResetRequestDTO;
 import com.ntc.backend.entity.PasswordResetRequest;
 import com.ntc.backend.entity.Staff;
+import com.ntc.backend.enums.AuditAction;
 import com.ntc.backend.repository.PasswordResetRepository;
 import com.ntc.backend.repository.StaffRepository;
+import com.ntc.backend.service.AuditLogService;
 import com.ntc.backend.service.EmailService;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,8 +29,8 @@ public class PasswordResetController {
     @Autowired private PasswordResetRepository repo;
     @Autowired private StaffRepository staffRepository;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private AuditLogService auditLogService;
 
-    // ==================== Staff submits request ====================
     @PostMapping
     public ApiResponse requestReset(@RequestBody PasswordResetRequestDTO dto) {
         try {
@@ -62,7 +64,6 @@ public class PasswordResetController {
         }
     }
 
-    // ==================== Admin: list (optional ?status=PENDING) ====================
     @GetMapping
     public List<Map<String, Object>> list(@RequestParam(required = false) String status) {
         return repo.findAll().stream()
@@ -73,7 +74,6 @@ public class PasswordResetController {
                 .collect(Collectors.toList());
     }
 
-    // ==================== Admin: approve → generate temp password ====================
     @PutMapping("/{id}/approve")
     @Transactional
     public ApiResponse approve(@PathVariable Long id) {
@@ -106,7 +106,12 @@ public class PasswordResetController {
         r.setStatus("APPROVED");
         repo.save(r);
 
-        // ===== Send fresh credentials (now with username) =====
+        try {
+            auditLogService.record("ADMIN", AuditAction.PASSWORD_RESET_APPROVED,
+                    "STAFF", staff.getStaffId(), staff.getFullName(),
+                    "Reset request #" + r.getId() + " approved");
+        } catch (Exception ignored) {}
+
         try {
             emailService.sendStaffCredentials(
                     staff.getEmail(),
@@ -128,7 +133,6 @@ public class PasswordResetController {
         return new ApiResponse(true, "Password reset. Share the credentials with the user.", data);
     }
 
-    // ==================== Admin: reject ====================
     @PutMapping("/{id}/reject")
     @Transactional
     public ApiResponse reject(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
@@ -143,6 +147,13 @@ public class PasswordResetController {
                     + "Rejection: " + body.get("reason"));
         }
         repo.save(r);
+
+        try {
+            auditLogService.record("ADMIN", AuditAction.PASSWORD_RESET_REJECTED,
+                    "REQUEST", String.valueOf(r.getId()), r.getFullName(),
+                    "Reset request rejected");
+        } catch (Exception ignored) {}
+
         return new ApiResponse(true, "Request rejected");
     }
 

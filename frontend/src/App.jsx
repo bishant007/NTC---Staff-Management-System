@@ -18,6 +18,7 @@ import PasswordResetRequests from "./pages/admin/PasswordResetRequests";
 import Reports from "./pages/admin/Reports";
 import Settings from "./pages/admin/Settings";
 import Notices from "./pages/admin/Notices";
+import AuditLog from "./pages/admin/AuditLog";
 
 import SectionHeadDashboard from "./pages/section-head/SectionHeadDashboard";
 import SectionHeadPending from "./pages/section-head/PendingApprovals";
@@ -29,7 +30,6 @@ import OfficeInchargePending from "./pages/office-incharge/PendingApprovals";
 import OfficeInchargeHistory from "./pages/office-incharge/ApprovalHistory";
 import MySectionHeads from "./pages/office-incharge/SectionHeads";
 
-// Roles that can access staff-level pages
 const ALL_STAFF_ROLES = ["staff", "section_head", "office_incharge"];
 
 function App() {
@@ -44,13 +44,11 @@ function App() {
           <Route path="/admin/login" element={<UnifiedLogin />} />
           <Route path="/contact-admin" element={<ContactAdmin />} />
 
-          {/* ✅ Reset password — allow ALL staff-level roles */}
           <Route path="/staff/reset-password" element={
             <ProtectedRoute allowedRoles={ALL_STAFF_ROLES}>
               <StaffResetPassword />
             </ProtectedRoute>} />
 
-          {/* Shared profile */}
           <Route path="/profile" element={
             <ProtectedRoute allowedRoles={ALL_STAFF_ROLES}>
               <ProfilePage />
@@ -77,6 +75,8 @@ function App() {
             <ProtectedRoute allowedRoles={["admin"]}><Notices /></ProtectedRoute>} />
           <Route path="/admin/reports" element={
             <ProtectedRoute allowedRoles={["admin"]}><Reports /></ProtectedRoute>} />
+          <Route path="/admin/audit-log" element={
+            <ProtectedRoute allowedRoles={["admin"]}><AuditLog /></ProtectedRoute>} />
           <Route path="/admin/settings" element={
             <ProtectedRoute allowedRoles={["admin"]}><Settings /></ProtectedRoute>} />
 

@@ -4,7 +4,8 @@ import com.ntc.backend.enums.LeaveType;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "leave_balances", uniqueConstraints = @UniqueConstraint(columnNames = {"staff_id", "leave_type"}))
+@Table(name = "leave_balances",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"staff_id", "leave_type"}))
 public class LeaveBalance {
 
     @Id
@@ -22,13 +23,12 @@ public class LeaveBalance {
     @Column(name = "total_entitled", nullable = false)
     private int totalEntitled;
 
+    /** Stored as double to support half-day (0.5) and hour-based deductions. */
     @Column(name = "used", nullable = false)
-    private int used = 0;
+    private double used = 0.0;
 
-    // constructors
     public LeaveBalance() {}
 
-    // getters and setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -41,6 +41,9 @@ public class LeaveBalance {
     public int getTotalEntitled() { return totalEntitled; }
     public void setTotalEntitled(int totalEntitled) { this.totalEntitled = totalEntitled; }
 
-    public int getUsed() { return used; }
-    public void setUsed(int used) { this.used = used; }
+    public double getUsed() { return used; }
+    public void setUsed(double used) { this.used = used; }
+
+    /** Convenience for UI/API — remaining = entitled − used. */
+    public double getRemaining() { return totalEntitled - used; }
 }

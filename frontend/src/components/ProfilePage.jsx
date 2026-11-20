@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
+import ActiveSessionsCard from '../components/ActiveSessionsCard';
 import {
   getMyProfile, uploadMySignature, deleteMySignature, getSignatureBlob
 } from '../services/authService';
@@ -65,7 +66,6 @@ function ProfilePage() {
       <Sidebar />
       <div style={{ flex: 1, marginLeft: 250, padding: 30 }}>
 
-        {/* HERO */}
         <div style={hero}>
           <div style={avatar}>{initials}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -93,7 +93,6 @@ function ProfilePage() {
           }}>{message}</p>
         )}
 
-        {/* CONTENT GRID */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 22 }}>
           <Card title="Personal Information" icon="👤">
             <InfoRow icon="🆔" label="Staff ID" value={profile.staffId} />
@@ -152,7 +151,6 @@ function ProfilePage() {
           </Card>
         </div>
 
-        {/* REPORTING CHAIN */}
         {(profile.sectionHead || profile.departmentHead) && (
           <Card title="Reporting Chain" icon="🔗" style={{ marginTop: 22 }}>
             <p style={{ color: '#64748b', fontSize: 13, marginTop: 0 }}>
@@ -183,16 +181,17 @@ function ProfilePage() {
           </Card>
         )}
 
-        {/* SESSION */}
         <Card title="Session & Security" icon="🔒" style={{ marginTop: 22 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <InfoRow icon="🎫" label="Session Type" value="JWT (24-hour expiry)" />
+            <InfoRow icon="🎫" label="Session Type" value="JWT with refresh tokens" />
             <InfoRow icon="🔐" label="Password" value="Change via Settings" />
             <InfoRow icon="✍" label="Signature Uploaded"
               value={profile.hasSignature ? 'Yes' : 'No'} />
             <InfoRow icon="🎭" label="Access Level" value={roleLabel} />
           </div>
         </Card>
+
+        <ActiveSessionsCard />
       </div>
     </div>
   );

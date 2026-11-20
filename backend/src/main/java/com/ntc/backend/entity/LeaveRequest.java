@@ -1,6 +1,7 @@
 package com.ntc.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.ntc.backend.enums.LeaveCategory;
 import com.ntc.backend.enums.LeaveType;
 import com.ntc.backend.enums.RequestStatus;
 import jakarta.persistence.*;
@@ -41,6 +42,19 @@ public class LeaveRequest {
     @Enumerated(EnumType.STRING)
     @Column(name = "leave_type", nullable = false)
     private LeaveType leaveType;
+
+    /** User-supplied description when the leave type is OTHER (personal/office). */
+    @Column(name = "custom_leave_type", length = 200)
+    private String customLeaveType;
+
+    /** Office Work vs Personal. Defaults to PERSONAL for legacy rows. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", length = 20)
+    private LeaveCategory category = LeaveCategory.PERSONAL;
+
+    /** Duration of the leave in days (0.5 for half-day, 1.0 for full day, etc.). */
+    @Column(name = "duration_days")
+    private Double durationDays;
 
     // Staff submission signature
     @Column(name = "staff_signature", columnDefinition = "TEXT")
@@ -85,12 +99,32 @@ public class LeaveRequest {
     // Snapshot of signature images (path at time of action)
     @Column(name = "staff_signature_image")
     private String staffSignatureImage;
-
     @Column(name = "section_head_signature_image")
     private String sectionHeadSignatureImage;
-
     @Column(name = "office_incharge_signature_image")
     private String officeInchargeSignatureImage;
+
+    // ===== ON HOLD fields =====
+    @Column(name = "hold_until")
+    private Instant holdUntil;
+
+    @Column(name = "hold_reason", columnDefinition = "TEXT")
+    private String holdReason;
+
+    @Column(name = "held_by_role")
+    private String heldByRole;
+
+    @Column(name = "held_by_id")
+    private Long heldById;
+
+    @Column(name = "held_by_name")
+    private String heldByName;
+
+    @Column(name = "held_at")
+    private Instant heldAt;
+
+    @Column(name = "pre_hold_status")
+    private String preHoldStatus;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -125,6 +159,15 @@ public class LeaveRequest {
 
     public LeaveType getLeaveType() { return leaveType; }
     public void setLeaveType(LeaveType leaveType) { this.leaveType = leaveType; }
+
+    public String getCustomLeaveType() { return customLeaveType; }
+    public void setCustomLeaveType(String customLeaveType) { this.customLeaveType = customLeaveType; }
+
+    public LeaveCategory getCategory() { return category; }
+    public void setCategory(LeaveCategory category) { this.category = category; }
+
+    public Double getDurationDays() { return durationDays; }
+    public void setDurationDays(Double durationDays) { this.durationDays = durationDays; }
 
     public String getStaffSignature() { return staffSignature; }
     public void setStaffSignature(String staffSignature) { this.staffSignature = staffSignature; }
@@ -176,6 +219,27 @@ public class LeaveRequest {
 
     public String getOfficeInchargeSignatureImage() { return officeInchargeSignatureImage; }
     public void setOfficeInchargeSignatureImage(String officeInchargeSignatureImage) { this.officeInchargeSignatureImage = officeInchargeSignatureImage; }
+
+    public Instant getHoldUntil() { return holdUntil; }
+    public void setHoldUntil(Instant holdUntil) { this.holdUntil = holdUntil; }
+
+    public String getHoldReason() { return holdReason; }
+    public void setHoldReason(String holdReason) { this.holdReason = holdReason; }
+
+    public String getHeldByRole() { return heldByRole; }
+    public void setHeldByRole(String heldByRole) { this.heldByRole = heldByRole; }
+
+    public Long getHeldById() { return heldById; }
+    public void setHeldById(Long heldById) { this.heldById = heldById; }
+
+    public String getHeldByName() { return heldByName; }
+    public void setHeldByName(String heldByName) { this.heldByName = heldByName; }
+
+    public Instant getHeldAt() { return heldAt; }
+    public void setHeldAt(Instant heldAt) { this.heldAt = heldAt; }
+
+    public String getPreHoldStatus() { return preHoldStatus; }
+    public void setPreHoldStatus(String preHoldStatus) { this.preHoldStatus = preHoldStatus; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

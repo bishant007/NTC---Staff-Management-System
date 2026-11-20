@@ -7,16 +7,23 @@ import com.ntc.backend.enums.NoticeType;
 import com.ntc.backend.repository.LeaveNoticeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 @Service
 public class NoticeService {
 
+    private static final ZoneId NEPAL_ZONE = ZoneId.of("Asia/Kathmandu");
+    private static final DateTimeFormatter NEPAL_FMT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(NEPAL_ZONE);
+
     @Autowired private LeaveNoticeRepository noticeRepository;
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public LeaveNotice generateNotice(LeaveRequest request, NoticeType type, String decisionByRole, String remarks) {
         var existing = noticeRepository.findByLeaveRequest(request);
         if (existing.isPresent()) return existing.get();
@@ -31,7 +38,6 @@ public class NoticeService {
 
         Staff staff = request.getStaff();
 
-        // Snapshot: staff
         StringBuilder sb = new StringBuilder();
         sb.append("staffId=").append(nz(staff.getStaffId())).append("\n");
         sb.append("username=").append(nz(staff.getUsername())).append("\n");
@@ -43,7 +49,6 @@ public class NoticeService {
         sb.append("role=").append(staff.getRole() != null ? staff.getRole().name() : "").append("\n");
         n.setStaffSnapshot(sb.toString());
 
-        // Snapshot: section head
         if (staff.getSectionHead() != null) {
             Staff sh = staff.getSectionHead();
             StringBuilder h = new StringBuilder();
@@ -55,7 +60,6 @@ public class NoticeService {
             n.setSectionHeadSnapshot(h.toString());
         }
 
-        // Snapshot: office incharge
         if (staff.getOfficeIncharge() != null) {
             Staff oi = staff.getOfficeIncharge();
             StringBuilder o = new StringBuilder();
@@ -67,15 +71,28 @@ public class NoticeService {
             n.setOfficeInchargeSnapshot(o.toString());
         }
 
-        // Snapshot: leave summary
         StringBuilder s = new StringBuilder();
-        s.append("leaveType=").append(request.getLeaveType() != null ? request.getLeaveType().name() : "").append("\n");
-        s.append("leaveStartTime=").append(request.getLeaveStartTime() != null ? request.getLeaveStartTime().toString() : "").append("\n");
-        s.append("returnDateTime=").append(request.getReturnDateTime() != null ? request.getReturnDateTime().toString() : "").append("\n");
+        s.append("category=").append(request.getCategory() != null
+                ? request.getCategory().name().replace("_", " ")
+                : "PERSONAL").append("\n");
+        s.append("leaveType=").append(request.getLeaveType() != null
+                ? request.getLeaveType().prettyLabel()
+                : "").append("\n");
+        if (request.getCustomLeaveType() != null && !request.getCustomLeaveType().isBlank()) {
+            s.append("customLeaveType=").append(nz(request.getCustomLeaveType())).append("\n");
+        }
+        s.append("leaveStartTime=")
+                .append(request.getLeaveStartTime() != null ? NEPAL_FMT.format(request.getLeaveStartTime()) : "")
+                .append("\n");
+        s.append("returnDateTime=")
+                .append(request.getReturnDateTime() != null ? NEPAL_FMT.format(request.getReturnDateTime()) : "")
+                .append("\n");
+        s.append("durationDays=").append(request.getDurationDays() != null
+                ? request.getDurationDays()
+                : "—").append("\n");
         s.append("reason=").append(nz(request.getReason())).append("\n");
         n.setLeaveSummary(s.toString());
 
-        // Typed-name signatures (human-readable)
         n.setStaffSignature(request.getStaffSignature());
         n.setSectionHeadSignature(
                 request.getSectionHeadSignature() != null
@@ -88,7 +105,6 @@ public class NoticeService {
                         : request.getOfficeInchargeRejectSignature()
         );
 
-        // ===== NEW: Copy image filename snapshots for the PDF =====
         n.setStaffSignatureImage(request.getStaffSignatureImage());
         n.setSectionHeadSignatureImage(request.getSectionHeadSignatureImage());
         n.setOfficeInchargeSignatureImage(request.getOfficeInchargeSignatureImage());
@@ -96,7 +112,6 @@ public class NoticeService {
         return noticeRepository.save(n);
     }
 
-    /** Null-safe trim. */
     private String nz(String s) {
         return s == null ? "" : s.replace("\n", " ").trim();
     }

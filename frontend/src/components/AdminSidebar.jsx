@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Users, FileText, LogOut, Key,
-  BarChart3, Bell, Settings as SettingsIcon
+  BarChart3, Bell, Settings as SettingsIcon, ScrollText
 } from 'lucide-react';
 
 function AdminSidebar() {
@@ -18,6 +18,7 @@ function AdminSidebar() {
     { label: 'Notices',          icon: <Bell size={20} />,            path: '/admin/notices' },
     { label: 'Password Reset',   icon: <Key size={20} />,             path: '/admin/password-reset' },
     { label: 'Reports',          icon: <BarChart3 size={20} />,       path: '/admin/reports' },
+    { label: 'Audit Log',        icon: <ScrollText size={20} />,      path: '/admin/audit-log' },
     { label: 'Settings',         icon: <SettingsIcon size={20} />,    path: '/admin/settings' },
   ];
 
