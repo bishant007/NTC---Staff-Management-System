@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
-import ActiveSessionsCard from '../components/ActiveSessionsCard';
 import {
   getMyProfile, uploadMySignature, deleteMySignature, getSignatureBlob
 } from '../services/authService';
@@ -180,18 +179,6 @@ function ProfilePage() {
             </div>
           </Card>
         )}
-
-        <Card title="Session & Security" icon="🔒" style={{ marginTop: 22 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <InfoRow icon="🎫" label="Session Type" value="JWT with refresh tokens" />
-            <InfoRow icon="🔐" label="Password" value="Change via Settings" />
-            <InfoRow icon="✍" label="Signature Uploaded"
-              value={profile.hasSignature ? 'Yes' : 'No'} />
-            <InfoRow icon="🎭" label="Access Level" value={roleLabel} />
-          </div>
-        </Card>
-
-        <ActiveSessionsCard />
       </div>
     </div>
   );

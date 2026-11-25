@@ -3,6 +3,12 @@ import { useAuth } from '../../context/AuthContext';
 import AdminSidebar from '../../components/AdminSidebar';
 import { changeAdminPassword } from '../../services/authService';
 
+// Fallback is the actual LAN IP of the NTC server PC.
+// Override with VITE_PHPMYADMIN_URL in frontend/.env if the IP ever changes.
+const PHPMYADMIN_URL =
+  import.meta.env.VITE_PHPMYADMIN_URL ||
+  'http://172.17.13.203/phpmyadmin/index.php?route=/server/sql';
+
 function Settings() {
   const { user } = useAuth();
   const [oldPassword, setOldPassword] = useState('');
@@ -68,7 +74,7 @@ function Settings() {
           <div style={{ flex: 1 }}>
             <h1 style={{ margin: 0, fontSize: 26 }}>Settings</h1>
             <p style={{ margin: '6px 0 0', fontSize: 14, opacity: 0.9 }}>
-              Manage your administrator profile and password.
+              Manage your administrator profile, password, and system access.
             </p>
           </div>
         </div>
@@ -154,6 +160,75 @@ function Settings() {
             </form>
           </div>
         </div>
+
+        {/* DATABASE ACCESS CARD */}
+        <div style={{
+          marginTop: 22,
+          background: '#fff', padding: 26, borderRadius: 18,
+          boxShadow: '0 6px 20px rgba(0,0,0,.05)',
+          borderTop: '4px solid #7c3aed',
+        }}>
+          <h3 style={{ marginTop: 0, color: '#0b2e6f', fontSize: 17 }}>Database Access</h3>
+          <p style={{ color: '#64748b', fontSize: 14, marginTop: 0, lineHeight: 1.6 }}>
+            Direct access to the NTC Staff System database via phpMyAdmin on the
+            server PC (<strong>172.17.13.203</strong>). Use with care — every change
+            is applied immediately and cannot be undone.
+          </p>
+
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>
+            <a
+              href={PHPMYADMIN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 10,
+                padding: '12px 22px',
+                background: 'linear-gradient(180deg,#8b5cf6,#7c3aed)',
+                color: '#fff', textDecoration: 'none',
+                borderRadius: 10, fontWeight: 700, fontSize: 14,
+                boxShadow: '0 4px 0 #5b21b6, 0 8px 16px rgba(124,58,237,.3)',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
+            >
+              <span style={{ fontSize: 18 }}>🗄️</span>
+              Open phpMyAdmin
+            </a>
+            <code style={{
+              fontSize: 12, color: '#64748b',
+              background: '#f8fafc', padding: '8px 12px',
+              borderRadius: 8, border: '1px solid #e2e8f0',
+              wordBreak: 'break-all',
+            }}>
+              {PHPMYADMIN_URL}
+            </code>
+          </div>
+
+          <div style={{
+            marginTop: 18, padding: 14, borderRadius: 12,
+            background: '#fef3c7', border: '1px solid #fde68a',
+            fontSize: 12, color: '#92400e', lineHeight: 1.7,
+          }}>
+            <strong>⚠️ Access is IP-restricted.</strong> This link only works from
+            authorised machines on the NTC network. If you see a <strong>403 Forbidden</strong>
+            page, your PC's IP has not been whitelisted in phpMyAdmin. Contact the IT
+            Administrator to request access.
+          </div>
+
+          <div style={{
+            marginTop: 12, padding: 14, borderRadius: 12,
+            background: '#f0f9ff', border: '1px solid #bae6fd',
+            fontSize: 12, color: '#075985', lineHeight: 1.7,
+          }}>
+            <strong>ℹ️ Server PC:</strong> 172.17.13.203 · phpMyAdmin is served by Apache
+            on that machine. Only IPs listed in the phpMyAdmin allowlist can reach it.
+            To grant access to another PC, ask IT to add its IP to
+            <code style={{ background: '#fff', padding: '1px 4px', borderRadius: 3, margin: '0 2px' }}>
+              config.inc.php
+            </code> on the server, then restart Apache.
+          </div>
+        </div>
+
       </div>
     </div>
   );

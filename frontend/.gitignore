@@ -1,4 +1,4 @@
-# Logs
+# ───────────── Logs ─────────────
 logs
 *.log
 npm-debug.log*
@@ -7,18 +7,53 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# ───────────── Dependencies / Build ─────────────
 node_modules
 dist
 dist-ssr
+
+# ───────────── Environment (Vite) ─────────────
+# .env              ← committed on purpose (contains only the LAN phpMyAdmin URL)
+# .env.production   ← committed if you ever add one
+# .env.example      ← committed (template for documentation)
+#
+# These are per-machine overrides and MUST NOT be committed:
+.env.local
+.env.*.local
 *.local
 
-# Editor directories and files
+# ───────────── Editor directories and files ─────────────
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# ───────────── OS noise ─────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+._*
+
+# ───────────── Test / coverage ─────────────
+coverage
+coverage-final.json
+.nyc_output
+
+# ───────────── Build / bundler caches ─────────────
+.cache
+.parcel-cache
+.vite
+.turbo
+*.tsbuildinfo
+
+# ───────────── Secret-ish files (defensive) ─────────────
+# Nothing currently matches these, but a future dev adding a TLS key or
+# local secrets file by accident should NOT be able to commit it.
+*.pem
+*.key
+*.p12
+secrets.json

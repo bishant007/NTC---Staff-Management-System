@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -34,6 +35,7 @@ public class EmailService {
     /* =========================================================
        PUBLIC API — account
        ========================================================= */
+    @Async
     public void sendStaffCredentials(String to, String fullName,
                                      String staffId, String username,
                                      String tempPassword, String role) {
@@ -62,6 +64,7 @@ public class EmailService {
         sendHtmlEmail(to, subject, wrap(subject, body));
     }
 
+    @Async
     public void sendRequestStatusUpdate(String to, String fullName,
                                         String refNo, String status, String remarks) {
         String subject = "Leave Request Update — " + refNo;
@@ -74,6 +77,7 @@ public class EmailService {
         sendHtmlEmail(to, subject, wrap(subject, body));
     }
 
+    @Async
     public void sendAccountDeactivated(String to, String fullName) {
         String subject = "Your NTC account has been deactivated";
         String body = ""
@@ -93,8 +97,9 @@ public class EmailService {
     }
 
     /* =========================================================
-       PUBLIC API — hold / session alerts (new)
+       PUBLIC API — hold / session alerts
        ========================================================= */
+    @Async
     public void sendRequestOnHold(String to, String fullName, String refNo,
                                   String heldByName, String heldByRole,
                                   String holdUntilNepal, String reason) {
@@ -115,6 +120,7 @@ public class EmailService {
         sendHtmlEmail(to, subject, wrap(subject, body));
     }
 
+    @Async
     public void sendHoldExpired(String to, String fullName, String refNo, String holdTimeNepal) {
         String subject = "Leave Request Auto-Rejected — " + refNo;
         String body = ""
@@ -129,6 +135,7 @@ public class EmailService {
         sendHtmlEmail(to, subject, wrap(subject, body));
     }
 
+    @Async
     public void sendNewLoginAlert(String to, String fullName,
                                   String ip, String userAgent, String whenNepal) {
         String subject = "New sign-in to your NTC account";
@@ -145,6 +152,7 @@ public class EmailService {
         sendHtmlEmail(to, subject, wrap(subject, body));
     }
 
+    @Async
     public void sendSessionRevoked(String to, String fullName, String details) {
         String subject = "Some of your NTC sessions were ended";
         String body = ""
@@ -157,8 +165,9 @@ public class EmailService {
     }
 
     /* =========================================================
-       CORE SEND
+       CORE SEND — called from PasswordResetController directly
        ========================================================= */
+    @Async
     public void sendHtmlEmail(String to, String subject, String htmlBody) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -174,7 +183,7 @@ public class EmailService {
     }
 
     /* =========================================================
-       LAYOUT PIECES
+       LAYOUT PIECES — unchanged
        ========================================================= */
     private String wrap(String subject, String bodyHtml) {
         return "<!DOCTYPE html>"
@@ -320,7 +329,7 @@ public class EmailService {
     }
 
     /* =========================================================
-       HELPERS
+       HELPERS — unchanged
        ========================================================= */
     private String prettyRole(String role) {
         if (role == null) return "";
